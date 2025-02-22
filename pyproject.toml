@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "jitcu"
+version = "0.0.0"
+description = ""
+requires-python = ">=3.10"
+dependencies = [
+  "torch",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["jitcu"]
+
+[tool.setuptools.package-dir]
+"jitcu" = "jitcu"
+
+[tool.setuptools.package-data]
+"jitcu" = ["data/**"]
