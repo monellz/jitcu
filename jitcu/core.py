@@ -4,12 +4,34 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Union
 
-from .env import JITCU_JIT_DIR, JITCU_INCLUDE_DIR
+from .env import JITCU_JIT_DIR, JITCU_INCLUDE_DIR, JITCU_WORKSPACE_DIR
 from .library import Library
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
+class JITCULogger(logging.Logger):
+  def __init__(self, name):
+    super().__init__(name)
+    self.setLevel(logging.INFO)
+    self.addHandler(logging.StreamHandler())
+    log_path = JITCU_WORKSPACE_DIR / "jitcu.log"
+    if not os.path.exists(log_path):
+      # create an empty file
+      with open(log_path, "w") as f:  # noqa: F841
+        pass
+    self.addHandler(logging.FileHandler(log_path))
+    # set the format of the log
+    self.handlers[0].setFormatter(
+      logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+    self.handlers[1].setFormatter(
+      logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+
+  def info(self, msg):
+    super().info("jitcu: " + msg)
+
+logger = JITCULogger("jitcu")
 
 def load_cuda_ops(
   name: str,
