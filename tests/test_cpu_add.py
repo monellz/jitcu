@@ -7,13 +7,15 @@ from jitcu import load_cuda_ops
 
 @pytest.mark.parametrize("ndim", [1, 2, 3])
 @pytest.mark.parametrize("dtype", [torch.int32, torch.float32])
-def test_cpu_add_1d(ndim, dtype):
+def test_cpu_add(ndim, dtype):
   code_str = r"""
 #include "jitcu/tensor.h"
 #include <cassert>
 int64_t check_and_return_total_size(Tensor& c, const Tensor& a, const Tensor& b) {
   assert(a.ndim == b.ndim);
   assert(a.ndim == c.ndim);
+  assert(a.dtype == b.dtype);
+  assert(a.dtype == c.dtype);
   int64_t size = 1;
   for (int i = 0; i < a.ndim; ++i) {
     assert(a.size(i) == b.size(i));
@@ -25,19 +27,22 @@ int64_t check_and_return_total_size(Tensor& c, const Tensor& a, const Tensor& b)
   return size;
 }
 
-extern "C" {
-
-void add_i32(Tensor& c, const Tensor& a, const Tensor& b) {
+template<typename T>
+void _add(Tensor& c, const Tensor& a, const Tensor& b) {
   int64_t size = check_and_return_total_size(c, a, b);
   for (int i = 0; i < size; ++i) {
-    c.data_ptr<int32_t>()[i] = a.data_ptr<int32_t>()[i] + b.data_ptr<int32_t>()[i];
+    c.data_ptr<T>()[i] = a.data_ptr<T>()[i] + b.data_ptr<T>()[i];
   }
 }
 
-void add_f32(Tensor& c, const Tensor& a, const Tensor& b) {
-  int64_t size = check_and_return_total_size(c, a, b);
-  for (int i = 0; i < size; ++i) {
-    c.data_ptr<float>()[i] = a.data_ptr<float>()[i] + b.data_ptr<float>()[i];
+extern "C" {
+void add(Tensor& c, const Tensor& a, const Tensor& b) {
+  if (c.dtype == kInt32) {
+    _add<int32_t>(c, a, b);
+  } else if (c.dtype == kFloat32) {
+    _add<float>(c, a, b);
+  } else {
+    assert(false && "Unsupported dtype");
   }
 }
 
@@ -50,8 +55,8 @@ void add_f32(Tensor& c, const Tensor& a, const Tensor& b) {
     lib = load_cuda_ops(
       name="add",
       sources=[f.name],
-      func_names=["add_i32", "add_f32"],
-      func_params=["t_t_t", "t_t_t"],
+      func_names=["add"],
+      func_params=["t_t_t"],
     )
 
     shape = [random.randint(1, 5) for _ in range(ndim)]
@@ -60,10 +65,5 @@ void add_f32(Tensor& c, const Tensor& a, const Tensor& b) {
     b = torch.randint(0, 10, shape, dtype=dtype)
     c = torch.zeros_like(a)
 
-    if dtype == torch.int32:
-      lib.add_i32(c, a, b)
-    elif dtype == torch.float32:
-      lib.add_f32(c, a, b)
-    else:
-      raise ValueError(f"Unsupported dtype: {dtype}")
+    lib.add(c, a, b)
     assert torch.allclose(c, a + b)

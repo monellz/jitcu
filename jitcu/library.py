@@ -1,6 +1,7 @@
 from ctypes import Structure, POINTER, c_void_p, c_int32, c_int64, CDLL, byref
 from typing import List
 import torch
+from enum import Enum
 
 class Tensor(Structure):
   _fields_ = [
@@ -8,18 +9,48 @@ class Tensor(Structure):
     ('ndim', c_int32),
     ('shape', POINTER(c_int64)),
     ('strides', POINTER(c_int64)),
+    ('dtype', c_int32),
   ]
+
+  class Dtype(Enum):
+    INT64 = 0
+    FLOAT64 = 1
+    INT32 = 2
+    FLOAT32 = 3
+    FLOAT16 = 4
+    BFLOAT16 = 5
+    FLOAT8_E4M3FN = 6
+    FLOAT8_E4M3FNUZ = 7
+    FLOAT8_E5M2 = 8
+    FLOAT8_E5M2FNUZ = 9
+
+    @classmethod
+    def from_torch_dtype(cls, dtype):
+      return {
+        torch.int64: cls.INT64,
+        torch.float64: cls.FLOAT64,
+        torch.int32: cls.INT32,
+        torch.float32: cls.FLOAT32,
+        torch.float16: cls.FLOAT16,
+        torch.bfloat16: cls.BFLOAT16,
+        torch.float8_e4m3fn: cls.FLOAT8_E4M3FN,
+        torch.float8_e4m3fnuz: cls.FLOAT8_E4M3FNUZ,
+        torch.float8_e5m2: cls.FLOAT8_E5M2,
+        torch.float8_e5m2fnuz: cls.FLOAT8_E5M2FNUZ,
+      }[dtype]
 
   @classmethod
   def from_torch_tensor(cls, src):
     assert src.storage_offset() == 0
     data = c_void_p(src.data_ptr())
     ndim = src.dim()
+    dtype = cls.Dtype.from_torch_dtype(src.dtype).value
     shape = (c_int64 * ndim)(*src.shape)
     strides = (c_int64 * ndim)(*src.stride())
     return cls(
       data=data,
       ndim=ndim,
+      dtype=dtype,
       shape=shape,
       strides=strides,
     )
