@@ -62,6 +62,7 @@ class Library(object):
     't': POINTER(Tensor),
     'i32': c_int32,
     'i64': c_int64,
+    's': c_void_p, # for cuda stream
   }
 
   def __init__(self, lib_path: str, func_names: List[str], func_params: List[str]):

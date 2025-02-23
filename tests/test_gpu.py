@@ -37,19 +37,19 @@ __global__ void _add_kernel(T* c, const T* a, const T* b, int64_t size) {
 }
 
 template<typename T>
-void _add(Tensor& c, const Tensor& a, const Tensor& b) {
+void _add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
   int64_t size = check_and_return_total_size(c, a, b);
   int threads_per_block = 256;
   int blocks = (size + threads_per_block - 1) / threads_per_block;
-  _add_kernel<T><<<blocks, threads_per_block>>>(c.data_ptr<T>(), a.data_ptr<T>(), b.data_ptr<T>(), size);
+  _add_kernel<T><<<blocks, threads_per_block, 0, stream>>>(c.data_ptr<T>(), a.data_ptr<T>(), b.data_ptr<T>(), size);
 }
 
 extern "C" {
-void add(Tensor& c, const Tensor& a, const Tensor& b) {
+void add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
   if (c.dtype == kInt32) {
-    _add<int32_t>(c, a, b);
+    _add<int32_t>(c, a, b, stream);
   } else if (c.dtype == kFloat32) {
-    _add<float>(c, a, b);
+    _add<float>(c, a, b, stream);
   } else {
     assert(false && "Unsupported dtype");
   }
@@ -65,7 +65,7 @@ void add(Tensor& c, const Tensor& a, const Tensor& b) {
       name="add",
       sources=[f.name],
       func_names=["add"],
-      func_params=["t_t_t"],
+      func_params=["t_t_t_s"],
     )
 
     shape = [random.randint(1, 5) for _ in range(ndim)]
@@ -74,6 +74,21 @@ void add(Tensor& c, const Tensor& a, const Tensor& b) {
     b = torch.randint(0, 10, shape, dtype=dtype, device=device)
     c = torch.zeros_like(a)
 
-    lib.add(c, a, b)
+    lib.add(c, a, b, 0)
     torch.cuda.synchronize()
-    assert torch.allclose(c, a + b)
+    torch.testing.assert_close(c, a + b)
+
+    # test it can be captured by cuda graph
+    with torch.cuda.stream(torch.cuda.Stream()):
+      g = torch.cuda.CUDAGraph()
+      stream = torch.cuda.current_stream()
+      torch.cuda.synchronize()
+      with torch.cuda.graph(g, stream=stream):
+        lib.add(c, a, b, stream.cuda_stream)
+      torch.cuda.synchronize()
+      c.fill_(0)
+      torch.testing.assert_close(c, torch.zeros_like(c))
+      torch.cuda.synchronize()
+      g.replay()
+      torch.cuda.synchronize()
+      torch.testing.assert_close(c, a + b)
