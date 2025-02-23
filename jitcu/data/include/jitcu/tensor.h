@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstdio>
 
+namespace jc {
+
 enum DataType {
   kInt64 = 0,
   kFloat64 = 1,
@@ -33,5 +35,7 @@ struct Tensor {
 
   inline int64_t stride(int32_t dim) const { return strides[dim]; }
 };
+
+}
 
 #endif  // _JITCU_TENSOR_H

@@ -13,6 +13,7 @@ def test_cpu_add(ndim, dtype):
     code_str = r"""
 #include "jitcu/tensor.h"
 #include <cassert>
+using namespace jc;
 int64_t check_and_return_total_size(Tensor& c, const Tensor& a, const Tensor& b) {
   assert(a.ndim == b.ndim);
   assert(a.ndim == c.ndim);
