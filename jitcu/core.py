@@ -98,7 +98,7 @@ def load_cuda_ops(
         *sources,
     ]
 
-    logger.info(f"Compiling... {''.join(cmd)}")
+    logger.info(f"Compiling... {' '.join(cmd)}")
 
     ret = subprocess.run(cmd)
     if ret.returncode != 0:
