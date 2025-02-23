@@ -2,6 +2,7 @@ import hashlib
 import logging
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -50,7 +51,7 @@ def hash_files(file_paths: List[Union[str, Path]]) -> str:
 
 def load_cuda_ops(
     name: str,
-    sources: List[Union[str, Path]],
+    sources: Union[List[Union[str, Path]], str],
     func_names: List[str],
     func_params: List[str],
     arches: Optional[List[str]] = None,
@@ -59,7 +60,21 @@ def load_cuda_ops(
     extra_ldflags: Optional[List[str]] = None,
     extra_include_paths: Optional[List[Union[str, Path]]] = None,
     build_directory: Optional[Union[str, Path]] = None,
+    keep_intermediates: bool = True,
 ):
+    # check sources
+    if isinstance(sources, str):
+        assert not os.path.exists(
+            sources
+        ), f"str-typed sources should not be a file path: {sources}"
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cu", delete=False) as f:
+            f.write(sources)
+            f.flush()
+        sources = [f.name]
+    else:
+        for path in sources:
+            assert os.path.exists(path), f"source file does not exist: {path}"
+
     if extra_cflags is None:
         extra_cflags = []
     if extra_cuda_cflags is None:
@@ -81,6 +96,7 @@ def load_cuda_ops(
         "-std=c++17",
         "-use_fast_math",
         "--expt-relaxed-constexpr",
+        "--ptxas-options=-v",
     ]
     ldflags = []
     include_paths = [
@@ -97,7 +113,12 @@ def load_cuda_ops(
 
     build_directory = Path(build_directory)
 
-    logger.info(f"Loading... {name=} {func_names=} {func_params=} {build_directory=}")
+    if keep_intermediates:
+        cuda_cflags.extend(["--keep", "--keep-dir", str(build_directory)])
+
+    logger.info(
+        f"Loading... {name=} {func_names=} {func_params=} {sources=} {build_directory=}"
+    )
     os.makedirs(build_directory, exist_ok=True)
 
     lib_name = f"{name}.so"
