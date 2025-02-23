@@ -1,16 +1,16 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-
 [project]
 name = "jitcu"
 version = "0.0.0"
 description = "A Simple Jit for cuda kernel"
 requires-python = ">=3.10"
+readme = "README.md"
 dependencies = [
   "torch",
 ]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
 dev = ["pytest", "pre-commit"]
