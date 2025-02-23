@@ -13,7 +13,8 @@ lib = load_cuda_ops(
     name="ops",
     sources=["source/path"],
     func_names=["func_1", "func_2"],
-    func_params=["t_t_t", "t_t_t_i32_s"], # only for input parameters, 't' means tensor, 's' means stream
+    # arg 0 of called function must be cudaStream_t, but we dont need to specify it there
+    func_params=["t_t_t", "t_t_t_i32"], # only for input parameters, 't' means tensor
     arches=["90"],
     extra_cflags=[],
     extra_cuda_cflags=[],

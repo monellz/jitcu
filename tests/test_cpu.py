@@ -39,7 +39,7 @@ void _add(Tensor& c, const Tensor& a, const Tensor& b) {
 }
 
 extern "C" {
-void add(Tensor& c, const Tensor& a, const Tensor& b) {
+void add(cudaStream_t stream, Tensor& c, const Tensor& a, const Tensor& b) {
   if (c.dtype == kInt32) {
     _add<int32_t>(c, a, b);
   } else if (c.dtype == kFloat32) {

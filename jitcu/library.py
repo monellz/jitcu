@@ -64,7 +64,6 @@ class Library(object):
         "t": POINTER(Tensor),
         "i32": c_int32,
         "i64": c_int64,
-        "s": c_void_p,  # for cuda stream
     }
 
     def __init__(self, lib_path: str, func_names: List[str], func_params: List[str]):
@@ -78,10 +77,14 @@ class Library(object):
         self.lib = CDLL(self.lib_path)
         for func_name, func_param in zip(self.func_names, self.func_params):
             func = getattr(self.lib, func_name)
-            func.argtypes = [self.type_mapping[p] for p in func_param.split("_")]
+            # arg 0 of called function is always the cuda stream
+            func.argtypes = [c_void_p] + [
+                self.type_mapping[p] for p in func_param.split("_")
+            ]
             func.restype = None
 
             def _func(*args):
+                stream = torch.cuda.current_stream().cuda_stream
                 args = [
                     (
                         byref(Tensor.from_torch_tensor(arg))
@@ -90,6 +93,6 @@ class Library(object):
                     )
                     for arg in args
                 ]
-                return func(*args)
+                return func(stream, *args)
 
             self.__setattr__(func_name, _func)

@@ -48,7 +48,7 @@ void _add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
 }
 
 extern "C" {
-void add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
+void add(cudaStream_t stream, Tensor& c, const Tensor& a, const Tensor& b) {
   if (c.dtype == kInt32) {
     _add<int32_t>(c, a, b, stream);
   } else if (c.dtype == kFloat32) {
@@ -68,7 +68,7 @@ void add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
             name="add",
             sources=[f.name],
             func_names=["add"],
-            func_params=["t_t_t_s"],
+            func_params=["t_t_t"],
         )
 
         shape = [random.randint(1, 5) for _ in range(ndim)]
@@ -77,7 +77,7 @@ void add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
         b = torch.randint(0, 10, shape, dtype=dtype, device=device)
         c = torch.zeros_like(a)
 
-        lib.add(c, a, b, 0)
+        lib.add(c, a, b)
         torch.cuda.synchronize()
         torch.testing.assert_close(c, a + b)
 
@@ -86,8 +86,8 @@ void add(Tensor& c, const Tensor& a, const Tensor& b, cudaStream_t stream) {
             g = torch.cuda.CUDAGraph()
             stream = torch.cuda.current_stream()
             torch.cuda.synchronize()
-            with torch.cuda.graph(g, stream=stream):
-                lib.add(c, a, b, stream.cuda_stream)
+            with torch.cuda.graph(g):
+                lib.add(c, a, b)
             torch.cuda.synchronize()
             c.fill_(0)
             torch.testing.assert_close(c, torch.zeros_like(c))
