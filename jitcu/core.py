@@ -20,6 +20,7 @@ class JITCULogger(logging.Logger):
         self.addHandler(logging.StreamHandler())
         log_path = JITCU_WORKSPACE_DIR / "jitcu.log"
         if not os.path.exists(log_path):
+            os.makedirs(JITCU_WORKSPACE_DIR, exist_ok=True)
             # create an empty file
             with open(log_path, "w") as f:  # noqa: F841
                 pass
