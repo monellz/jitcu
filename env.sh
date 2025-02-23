@@ -1,4 +1,4 @@
-spack load python@3.12.5/t72fixe
+spack load python@3.13.0/qcpc3ix
 spack load cuda@12.4.1/f3kmmeb
 export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
 source venv/bin/activate

@@ -1,14 +1,16 @@
-import tempfile
 import random
+import tempfile
+
 import pytest
 import torch
 
 from jitcu import load_cuda_ops
 
+
 @pytest.mark.parametrize("ndim", [1, 2, 3])
 @pytest.mark.parametrize("dtype", [torch.int32, torch.float32])
 def test_cpu_add(ndim, dtype):
-  code_str = r"""
+    code_str = r"""
 #include "jitcu/tensor.h"
 #include <cassert>
 int64_t check_and_return_total_size(Tensor& c, const Tensor& a, const Tensor& b) {
@@ -48,22 +50,22 @@ void add(Tensor& c, const Tensor& a, const Tensor& b) {
 
 }
   """
-  with tempfile.NamedTemporaryFile(mode="w", suffix=".cu", delete=False) as f:
-    f.write(code_str)
-    f.flush()
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cu", delete=False) as f:
+        f.write(code_str)
+        f.flush()
 
-    lib = load_cuda_ops(
-      name="add",
-      sources=[f.name],
-      func_names=["add"],
-      func_params=["t_t_t"],
-    )
+        lib = load_cuda_ops(
+            name="add",
+            sources=[f.name],
+            func_names=["add"],
+            func_params=["t_t_t"],
+        )
 
-    shape = [random.randint(1, 5) for _ in range(ndim)]
+        shape = [random.randint(1, 5) for _ in range(ndim)]
 
-    a = torch.randint(0, 10, shape, dtype=dtype)
-    b = torch.randint(0, 10, shape, dtype=dtype)
-    c = torch.zeros_like(a)
+        a = torch.randint(0, 10, shape, dtype=dtype)
+        b = torch.randint(0, 10, shape, dtype=dtype)
+        c = torch.zeros_like(a)
 
-    lib.add(c, a, b)
-    assert torch.allclose(c, a + b)
+        lib.add(c, a, b)
+        assert torch.allclose(c, a + b)

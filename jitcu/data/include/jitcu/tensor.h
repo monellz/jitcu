@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 
-enum DataType{
+enum DataType {
   kInt64 = 0,
   kFloat64 = 1,
   kInt32 = 2,
@@ -24,18 +24,14 @@ struct Tensor {
   int64_t* strides;
   DataType dtype;
 
-  template<typename T>
+  template <typename T>
   T* data_ptr() const {
     return static_cast<T*>(data);
   }
 
-  inline int64_t size(int32_t dim) const {
-    return shape[dim];
-  }
+  inline int64_t size(int32_t dim) const { return shape[dim]; }
 
-  inline int64_t stride(int32_t dim) const {
-    return strides[dim];
-  }
+  inline int64_t stride(int32_t dim) const { return strides[dim]; }
 };
 
-#endif // _JITCU_TENSOR_H
+#endif  // _JITCU_TENSOR_H
