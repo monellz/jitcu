@@ -42,6 +42,7 @@ def load_cuda_ops(
     sources: List[Union[str, Path]],
     func_names: List[str],
     func_params: List[str],
+    arches: Optional[List[str]] = None, 
     extra_cflags: Optional[List[str]] = None,
     extra_cuda_cflags: Optional[List[str]] = None,
     extra_ldflags: Optional[List[str]] = None,
@@ -56,6 +57,12 @@ def load_cuda_ops(
         extra_ldflags = []
     if extra_include_paths is None:
         extra_include_paths = []
+
+    arch_flags = []
+    if arches is not None and len(arches) > 0:
+        for arch in arches:
+            arch_flags.append("-gencode")
+            arch_flags.append(f"arch=compute_{arch},code=sm_{arch}")
 
     cflags = []
     cuda_cflags = [
@@ -85,16 +92,17 @@ def load_cuda_ops(
     lib_path = build_directory / lib_name
     cmd = [
         "nvcc",
+        *arch_flags,
+        *cuda_cflags,
+        *ldflags,
+        *["-I" + str(p) for p in include_paths],
         "--compiler-options",
         "'-fPIC'",
         "-lineinfo",
         "--shared",
+        *cflags,
         "-o",
         str(lib_path),
-        *cflags,
-        *cuda_cflags,
-        *ldflags,
-        *["-I" + str(p) for p in include_paths],
         *sources,
     ]
 
