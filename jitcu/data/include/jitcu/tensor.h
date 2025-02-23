@@ -36,6 +36,6 @@ struct Tensor {
   inline int64_t stride(int32_t dim) const { return strides[dim]; }
 };
 
-}
+}  // namespace jc
 
 #endif  // _JITCU_TENSOR_H

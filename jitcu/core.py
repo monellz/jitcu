@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import subprocess
@@ -37,12 +38,22 @@ class JITCULogger(logging.Logger):
 logger = JITCULogger("jitcu")
 
 
+def hash_files(file_paths: List[Union[str, Path]]) -> str:
+    BLOCK_SIZE = 4096
+    md5_hash = hashlib.md5()
+    for file_path in file_paths:
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(BLOCK_SIZE), b""):
+                md5_hash.update(chunk)
+    return md5_hash.hexdigest()
+
+
 def load_cuda_ops(
     name: str,
     sources: List[Union[str, Path]],
     func_names: List[str],
     func_params: List[str],
-    arches: Optional[List[str]] = None, 
+    arches: Optional[List[str]] = None,
     extra_cflags: Optional[List[str]] = None,
     extra_cuda_cflags: Optional[List[str]] = None,
     extra_ldflags: Optional[List[str]] = None,
@@ -91,6 +102,27 @@ def load_cuda_ops(
 
     lib_name = f"{name}.so"
     lib_path = build_directory / lib_name
+
+    # check if compilation is necessary
+    lib_hash_path = build_directory / f"{name}.hash"
+    need_recompile = True
+    if os.path.exists(lib_hash_path):
+        hash_value = hash_files(
+            file_paths=sources + [lib_path] if os.path.exists(lib_path) else sources
+        )
+        with open(lib_hash_path, "r") as f:
+            old_hash_value = f.read()
+        if hash_value == old_hash_value:
+            need_recompile = False
+
+    if not need_recompile:
+        logger.info(f"Using cached library: {lib_path}")
+        return Library(
+            lib_path=lib_path,
+            func_names=func_names,
+            func_params=func_params,
+        )
+
     cmd = [
         "nvcc",
         *arch_flags,
@@ -112,6 +144,10 @@ def load_cuda_ops(
     ret = subprocess.run(cmd)
     if ret.returncode != 0:
         raise RuntimeError(f"Failed to compile CUDA ops: {name}")
+
+    # save the hash value
+    with open(lib_hash_path, "w") as f:
+        f.write(hash_files(file_paths=sources + [lib_path]))
 
     return Library(
         lib_path=lib_path,
