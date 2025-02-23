@@ -69,6 +69,7 @@ def load_cuda_ops(
         "-O3",
         "-std=c++17",
         "-use_fast_math",
+        "--expt-relaxed-constexpr",
     ]
     ldflags = []
     include_paths = [
