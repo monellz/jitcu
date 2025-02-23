@@ -25,7 +25,7 @@ class Tensor(Structure):
     FLOAT8_E5M2FNUZ = 9
 
     @classmethod
-    def from_torch_dtype(cls, dtype):
+    def from_torch_dtype(cls, dtype: torch.dtype):
       return {
         torch.int64: cls.INT64,
         torch.float64: cls.FLOAT64,
@@ -40,7 +40,7 @@ class Tensor(Structure):
       }[dtype]
 
   @classmethod
-  def from_torch_tensor(cls, src):
+  def from_torch_tensor(cls, src: torch.Tensor):
     assert src.storage_offset() == 0
     data = c_void_p(src.data_ptr())
     ndim = src.dim()
