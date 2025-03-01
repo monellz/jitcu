@@ -62,6 +62,7 @@ def load_cuda_ops(
     extra_include_paths: Optional[List[Union[str, Path]]] = None,
     build_directory: Optional[Union[str, Path]] = None,
     keep_intermediates: bool = True,
+    force_recompile: bool = False,
 ):
     # check sources
     if isinstance(sources, str):
@@ -127,8 +128,8 @@ def load_cuda_ops(
 
     # check if compilation is necessary
     lib_hash_path = build_directory / f"{name}.hash"
-    need_recompile = True
-    if os.path.exists(lib_hash_path):
+    need_recompile = force_recompile
+    if not need_recompile and os.path.exists(lib_hash_path):
         hash_value = hash_files(
             file_paths=sources + [lib_path] if os.path.exists(lib_path) else sources
         )
