@@ -37,4 +37,12 @@ std::string check_failed_msg(const char* cond_str, Args&&... args) {
 
 #define CUDA_CHECK_KERNEL_LAUNCH() CUDA_CHECK(cudaGetLastError())
 
+#define CUTE_PRINT(x)    \
+  do {                   \
+    ::cute::print(#x);   \
+    ::cute::print(": "); \
+    ::cute::print(x);    \
+    ::cute::print("\n"); \
+  } while (0)
+
 #endif  // _JITCU_UTILS_H
