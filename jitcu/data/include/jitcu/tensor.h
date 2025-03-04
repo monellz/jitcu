@@ -56,7 +56,7 @@ struct Tensor {
   int64_t* strides;
   DataType dtype;
 
-  template <typename T>
+  template <typename T = void>
   T* data_ptr() const {
     return static_cast<T*>(data);
   }
