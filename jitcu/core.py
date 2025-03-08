@@ -130,13 +130,13 @@ def load_cuda_ops(
     lib_hash_path = build_directory / f"{name}.hash"
     need_recompile = force_recompile
     if not need_recompile and os.path.exists(lib_hash_path):
-        hash_value = hash_files(
-            file_paths=sources + [lib_path] if os.path.exists(lib_path) else sources
-        )
+        hash_value = hash_files(file_paths=sources + [lib_path])
         with open(lib_hash_path, "r") as f:
             old_hash_value = f.read()
         if hash_value == old_hash_value:
             need_recompile = False
+        else:
+            need_recompile = True
 
     if not need_recompile:
         logger.info(f"Using cached library: {lib_path}")
