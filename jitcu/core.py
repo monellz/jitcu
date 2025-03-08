@@ -134,6 +134,9 @@ def load_cuda_ops(
         with open(lib_hash_path, "r") as f:
             old_hash_value = f.read()
         if hash_value == old_hash_value:
+            logger.info(
+                f"Trigger recompilation, hash_value is {hash_value} (prev: {old_hash_value})"
+            )
             need_recompile = False
         else:
             need_recompile = True
