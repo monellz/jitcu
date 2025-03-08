@@ -79,7 +79,10 @@ class Library(object):
             func = getattr(self.lib, func_name)
             # arg 0 of called function is always the cuda stream
             func.argtypes = [c_void_p] + [
-                self.type_mapping[p] for p in func_param.split("_")
+                self.type_mapping[p]
+                for p in filter(
+                    lambda x: len(x.strip()) > 0, func_param.strip().split("_")
+                )
             ]
             func.restype = None
 
