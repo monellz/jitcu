@@ -61,7 +61,7 @@ def load_cuda_ops(
     extra_ldflags: Optional[List[str]] = None,
     extra_include_paths: Optional[List[Union[str, Path]]] = None,
     build_directory: Optional[Union[str, Path]] = None,
-    keep_intermediates: bool = True,
+    keep_intermediates: bool = False,
     force_recompile: bool = False,
 ):
     # check sources
@@ -134,11 +134,11 @@ def load_cuda_ops(
         with open(lib_hash_path, "r") as f:
             old_hash_value = f.read()
         if hash_value == old_hash_value:
+            need_recompile = False
+        else:
             logger.info(
                 f"Trigger recompilation, hash_value is {hash_value} (prev: {old_hash_value})"
             )
-            need_recompile = False
-        else:
             need_recompile = True
 
     if not need_recompile:
