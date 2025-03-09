@@ -128,8 +128,8 @@ def load_cuda_ops(
 
     # check if compilation is necessary
     lib_hash_path = build_directory / f"{name}.hash"
-    need_recompile = force_recompile
-    if not need_recompile and os.path.exists(lib_hash_path):
+    need_recompile = True
+    if not force_recompile and os.path.exists(lib_hash_path):
         hash_value = hash_files(file_paths=sources + [lib_path])
         with open(lib_hash_path, "r") as f:
             old_hash_value = f.read()
