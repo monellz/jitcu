@@ -16,10 +16,11 @@ enum DataType {
   kFloat32 = 3,
   kFloat16 = 4,
   kBfloat16 = 5,
-  kFloat8_e4m3fn = 6,
-  kFloat8_e4m3fnuz = 7,
-  kFloat8_e5m2 = 8,
-  kFloat8_e5m2fnuz = 9,
+  kInt16 = 6,
+  kFloat8_e4m3fn = 7,
+  kFloat8_e4m3fnuz = 8,
+  kFloat8_e5m2 = 9,
+  kFloat8_e5m2fnuz = 10,
 };
 
 constexpr std::string_view sv_of(DataType type) {
@@ -36,6 +37,8 @@ constexpr std::string_view sv_of(DataType type) {
       return "f16";
     case DataType::kBfloat16:
       return "bf16";
+    case DataType::kInt16:
+      return "i16";
     case DataType::kFloat8_e4m3fn:
       return "f8_e4m3fn";
     case DataType::kFloat8_e4m3fnuz:

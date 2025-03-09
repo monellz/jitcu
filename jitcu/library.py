@@ -1,4 +1,4 @@
-from ctypes import CDLL, POINTER, Structure, byref, c_int32, c_int64, c_void_p
+from ctypes import CDLL, POINTER, Structure, byref, c_int16, c_int32, c_int64, c_void_p
 from enum import Enum
 from typing import List
 
@@ -21,10 +21,11 @@ class Tensor(Structure):
         FLOAT32 = 3
         FLOAT16 = 4
         BFLOAT16 = 5
-        FLOAT8_E4M3FN = 6
-        FLOAT8_E4M3FNUZ = 7
-        FLOAT8_E5M2 = 8
-        FLOAT8_E5M2FNUZ = 9
+        INT16 = 6
+        FLOAT8_E4M3FN = 7
+        FLOAT8_E4M3FNUZ = 8
+        FLOAT8_E5M2 = 9
+        FLOAT8_E5M2FNUZ = 10
 
         @classmethod
         def from_torch_dtype(cls, dtype: torch.dtype):
@@ -35,6 +36,7 @@ class Tensor(Structure):
                 torch.float32: cls.FLOAT32,
                 torch.float16: cls.FLOAT16,
                 torch.bfloat16: cls.BFLOAT16,
+                torch.int16: cls.INT16,
                 torch.float8_e4m3fn: cls.FLOAT8_E4M3FN,
                 torch.float8_e4m3fnuz: cls.FLOAT8_E4M3FNUZ,
                 torch.float8_e5m2: cls.FLOAT8_E5M2,
