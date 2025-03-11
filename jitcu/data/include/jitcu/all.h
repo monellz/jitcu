@@ -2,6 +2,7 @@
 #define _JITCU_ALL_H
 
 #include "dbg.h"
+#include "jitcu/profiler.h"
 #include "jitcu/tensor.h"
 #include "jitcu/utils.h"
 

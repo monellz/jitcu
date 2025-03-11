@@ -4,7 +4,7 @@
 #include <sstream>
 
 #ifdef __CUDACC__
-#define _JITCU_DEVICE __device__
+#define _JITCU_DEVICE __device__ __forceinline__
 #else
 #define _JITCU_DEVICE
 #endif
