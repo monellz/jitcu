@@ -98,7 +98,7 @@ def load_cuda_ops(
         "-std=c++17",
         "-use_fast_math",
         "--expt-relaxed-constexpr",
-        "--ptxas-options=-v",
+        "--ptxas-options=--verbose,--register-usage-level=10,--warn-on-local-memory-usage",
     ]
     ldflags = []
     include_paths = [

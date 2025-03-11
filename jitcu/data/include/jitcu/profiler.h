@@ -134,7 +134,13 @@ __device__ __forceinline__ void event_instant(ProfilerContext& ctx, T event) {
 #else
 
 _JITCU_DEVICE ProfilerContext context_init(const ProfilerHostParams& params, uint32_t group_idx,
-                                           uint32_t num_groups, bool write_thread_predicate) {}
+                                           uint32_t num_groups, bool write_thread_predicate) {
+  ProfilerContext ctx;
+  ctx.write_ptr = nullptr;
+  ctx.write_stride = ctx.entry_tag_base = 0;
+  ctx.write_thread_predicate = false;
+  return ctx;
+}
 
 template <typename T>
 _JITCU_DEVICE void event_start(ProfilerContext& ctx, T event) {}
