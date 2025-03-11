@@ -10,35 +10,54 @@
 namespace jc {
 
 enum DataType {
-  kInt64 = 0,
-  kFloat64 = 1,
-  kInt32 = 2,
-  kFloat32 = 3,
-  kFloat16 = 4,
-  kBfloat16 = 5,
-  kInt16 = 6,
-  kFloat8_e4m3fn = 7,
-  kFloat8_e4m3fnuz = 8,
-  kFloat8_e5m2 = 9,
-  kFloat8_e5m2fnuz = 10,
+  kUint64 = 0,
+  kInt64 = 1,
+  kFloat64 = 2,
+
+  kUint32 = 3,
+  kInt32 = 4,
+  kFloat32 = 5,
+
+  kUint16 = 6,
+  kInt16 = 7,
+  kFloat16 = 8,
+  kBfloat16 = 9,
+
+  kUint8 = 10,
+  kInt8 = 11,
+
+  kFloat8_e4m3fn = 12,
+  kFloat8_e4m3fnuz = 13,
+  kFloat8_e5m2 = 14,
+  kFloat8_e5m2fnuz = 15,
 };
 
 constexpr std::string_view sv_of(DataType type) {
   switch (type) {
+    case DataType::kUint64:
+      return "u64";
     case DataType::kInt64:
       return "i64";
     case DataType::kFloat64:
       return "f64";
+    case DataType::kUint32:
+      return "u32";
     case DataType::kInt32:
       return "i32";
     case DataType::kFloat32:
       return "f32";
+    case DataType::kUint16:
+      return "u16";
+    case DataType::kInt16:
+      return "i16";
     case DataType::kFloat16:
       return "f16";
     case DataType::kBfloat16:
       return "bf16";
-    case DataType::kInt16:
-      return "i16";
+    case DataType::kUint8:
+      return "u8";
+    case DataType::kInt8:
+      return "i8";
     case DataType::kFloat8_e4m3fn:
       return "f8_e4m3fn";
     case DataType::kFloat8_e4m3fnuz:

@@ -15,28 +15,38 @@ class Tensor(Structure):
     ]
 
     class Dtype(Enum):
-        INT64 = 0
-        FLOAT64 = 1
-        INT32 = 2
-        FLOAT32 = 3
-        FLOAT16 = 4
-        BFLOAT16 = 5
-        INT16 = 6
-        FLOAT8_E4M3FN = 7
-        FLOAT8_E4M3FNUZ = 8
-        FLOAT8_E5M2 = 9
-        FLOAT8_E5M2FNUZ = 10
+        UINT64 = 0
+        INT64 = 1
+        FLOAT64 = 2
+        UINT32 = 3
+        INT32 = 4
+        FLOAT32 = 5
+        UINT16 = 6
+        INT16 = 7
+        FLOAT16 = 8
+        BFLOAT16 = 9
+        UINT8 = 10
+        INT8 = 11
+        FLOAT8_E4M3FN = 12
+        FLOAT8_E4M3FNUZ = 13
+        FLOAT8_E5M2 = 14
+        FLOAT8_E5M2FNUZ = 15
 
         @classmethod
         def from_torch_dtype(cls, dtype: torch.dtype):
             return {
+                torch.uint64: cls.UINT64,
                 torch.int64: cls.INT64,
                 torch.float64: cls.FLOAT64,
+                torch.uint32: cls.UINT32,
                 torch.int32: cls.INT32,
                 torch.float32: cls.FLOAT32,
+                torch.uint16: cls.UINT16,
+                torch.int16: cls.INT16,
                 torch.float16: cls.FLOAT16,
                 torch.bfloat16: cls.BFLOAT16,
-                torch.int16: cls.INT16,
+                torch.uint8: cls.UINT8,
+                torch.int8: cls.INT8,
                 torch.float8_e4m3fn: cls.FLOAT8_E4M3FN,
                 torch.float8_e4m3fnuz: cls.FLOAT8_E4M3FNUZ,
                 torch.float8_e5m2: cls.FLOAT8_E5M2,
