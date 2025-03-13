@@ -2,11 +2,10 @@ import hashlib
 import logging
 import os
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
-from .env import JITCU_INCLUDE_DIR, JITCU_JIT_DIR, JITCU_WORKSPACE_DIR
+from . import env
 from .library import Library
 
 logging.basicConfig(level=logging.INFO)
@@ -18,9 +17,9 @@ class JITCULogger(logging.Logger):
         super().__init__(name)
         self.setLevel(logging.INFO)
         self.addHandler(logging.StreamHandler())
-        log_path = JITCU_WORKSPACE_DIR / "jitcu.log"
+        log_path = env.JITCU_WORKSPACE_DIR / "jitcu.log"
         if not os.path.exists(log_path):
-            os.makedirs(JITCU_WORKSPACE_DIR, exist_ok=True)
+            os.makedirs(env.JITCU_WORKSPACE_DIR, exist_ok=True)
             # create an empty file
             with open(log_path, "w") as f:  # noqa: F841
                 pass
@@ -61,18 +60,32 @@ def load_cuda_ops(
     extra_ldflags: Optional[List[str]] = None,
     extra_include_paths: Optional[List[Union[str, Path]]] = None,
     build_directory: Optional[Union[str, Path]] = None,
-    keep_intermediates: bool = False,
+    nvcc_keep: bool = False,
     force_recompile: bool = False,
+    verbose: bool = False,
 ):
+
+    if build_directory is None:
+        build_directory = env.JITCU_JIT_DIR / name
+    build_directory = Path(build_directory)
+    os.makedirs(build_directory, exist_ok=True)
+
+    # overwrite options
+    nvcc_keep = env.JITCU_NVCC_KEEP or nvcc_keep
+    force_recompile = env.JITCU_FORCE_RECOMPILE or force_recompile
+    verbose = env.JITCU_VERBOSE or verbose
+
     # check sources
     if isinstance(sources, str):
         assert not os.path.exists(
             sources
         ), f"str-typed sources should not be a file path: {sources}"
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cu", delete=False) as f:
+
+        source_path = build_directory / f"{name}.cu"
+        with open(source_path, "w") as f:
             f.write(sources)
             f.flush()
-        sources = [f.name]
+        sources = [source_path]
     else:
         for path in sources:
             assert os.path.exists(path), f"source file does not exist: {path}"
@@ -102,7 +115,7 @@ def load_cuda_ops(
     ]
     ldflags = []
     include_paths = [
-        JITCU_INCLUDE_DIR,
+        env.JITCU_INCLUDE_DIR,
     ]
 
     cflags += extra_cflags
@@ -110,18 +123,15 @@ def load_cuda_ops(
     ldflags += extra_ldflags
     include_paths += extra_include_paths
 
-    if build_directory is None:
-        build_directory = JITCU_JIT_DIR / name
-
-    build_directory = Path(build_directory)
-
-    if keep_intermediates:
-        cuda_cflags.extend(["--keep", "--keep-dir", str(build_directory)])
+    if nvcc_keep:
+        # ref: https://github.com/NVIDIA/cutlass/blob/06e560d98a5fe8acb975db2c4c26817b6c90acb1/CMakeLists.txt#L444
+        cuda_cflags.extend(["--keep", "--save-temps", str(build_directory)])
+    if verbose:
+        cuda_cflags.extend(["-v"])
 
     logger.info(
         f"Loading... {name=} {func_names=} {func_params=} {sources=} {build_directory=}"
     )
-    os.makedirs(build_directory, exist_ok=True)
 
     lib_name = f"{name}.so"
     lib_path = build_directory / lib_name
@@ -162,7 +172,7 @@ def load_cuda_ops(
         *cflags,
         "-o",
         str(lib_path),
-        *sources,
+        *[str(s) for s in sources],
     ]
 
     logger.info(f"Compiling... {' '.join(cmd)}")
@@ -170,6 +180,21 @@ def load_cuda_ops(
     ret = subprocess.run(cmd)
     if ret.returncode != 0:
         raise RuntimeError(f"Failed to compile CUDA ops: {name}")
+
+    if nvcc_keep:
+        sass_path = build_directory / f"{name}.sass"
+        o_path = build_directory / f"{name}.o"
+        assert os.path.exists(o_path), f"object file does not exist: {o_path}"
+        sass_cmd = [
+            "cuobjdump",
+            "--dump-sass",
+            str(o_path),
+        ]
+        with open(sass_path, "w") as f:
+            logger.info(f"Generating SASS (saved in {sass_path}): {' '.join(sass_cmd)}")
+            ret = subprocess.run(sass_cmd, stdout=f, text=True)
+            if ret.returncode != 0:
+                raise RuntimeError(f"Failed to generate SASS: {name}")
 
     # save the hash value
     with open(lib_hash_path, "w") as f:

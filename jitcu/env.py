@@ -1,3 +1,4 @@
+import os
 import pathlib
 import re
 import warnings
@@ -26,3 +27,8 @@ JITCU_JIT_DIR = JITCU_WORKSPACE_DIR / "cached_ops"
 JITCU_GEN_SRC_DIR = JITCU_WORKSPACE_DIR / "generated"
 _package_root = pathlib.Path(__file__).resolve().parents[0]
 JITCU_INCLUDE_DIR = _package_root / "data" / "include"
+
+# external environment variables
+JITCU_NVCC_KEEP = os.environ.get("JITCU_NVCC_KEEP", "0") == "1"
+JITCU_FORCE_RECOMPILE = os.environ.get("JITCU_FORCE_RECOMPILE", "0") == "1"
+JITCU_VERBOSE = os.environ.get("JITCU_VERBOSE", "0") == "1"
