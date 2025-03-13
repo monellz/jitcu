@@ -99,6 +99,13 @@ def load_cuda_ops(
     if extra_include_paths is None:
         extra_include_paths = []
 
+    # warn
+    if "-DNDEBUG" not in extra_cflags and "-DNDEBUG" not in extra_cuda_cflags:
+        # mostly for cute
+        logger.warning(
+            "It is recommended to use -DNDEBUG to avoid potential performance loss."
+        )
+
     arch_flags = []
     if arches is not None and len(arches) > 0:
         for arch in arches:
