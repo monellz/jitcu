@@ -74,6 +74,10 @@ def load_cuda_ops(
     nvcc_keep = env.JITCU_NVCC_KEEP or nvcc_keep
     force_recompile = env.JITCU_FORCE_RECOMPILE or force_recompile
     verbose = env.JITCU_VERBOSE or verbose
+    enable_profiler = env.JITCU_ENABLE_PROFILER
+    if enable_profiler:
+        force_recompile = True
+        logger.warning("Profiling is enabled, force recompilation.")
 
     # check sources
     if isinstance(sources, str):
@@ -131,10 +135,13 @@ def load_cuda_ops(
     include_paths += extra_include_paths
 
     if nvcc_keep:
+        # Still use --keep-dir to keep the object file
         # ref: https://github.com/NVIDIA/cutlass/blob/06e560d98a5fe8acb975db2c4c26817b6c90acb1/CMakeLists.txt#L444
-        cuda_cflags.extend(["--keep", "--save-temps", str(build_directory)])
+        cuda_cflags.extend(["--keep", "--keep-dir", str(build_directory)])
     if verbose:
         cuda_cflags.extend(["-v"])
+    if enable_profiler:
+        cflags.extend(["-DJC_ENABLE_PROFILER"])
 
     logger.info(
         f"Loading... {name=} {func_names=} {func_params=} {sources=} {build_directory=}"
