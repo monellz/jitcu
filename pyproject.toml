@@ -10,7 +10,7 @@ dependencies = [
 
   # for profiler
   "tg4perfetto",
-  "protobuf == 3.20.2",
+  "protobuf == 4.25.8",
 ]
 
 [build-system]
