@@ -60,38 +60,34 @@ void add(cudaStream_t stream, Tensor& c, const Tensor& a, const Tensor& b) {
 
 }
   """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".cu", delete=False) as f:
-        f.write(code_str)
-        f.flush()
+    lib = load_cuda_ops(
+        name="add",
+        sources=code_str,
+        func_names=["add"],
+        func_params=["t_t_t"],
+    )
 
-        lib = load_cuda_ops(
-            name="add",
-            sources=[f.name],
-            func_names=["add"],
-            func_params=["t_t_t"],
-        )
+    shape = [random.randint(1, 5) for _ in range(ndim)]
 
-        shape = [random.randint(1, 5) for _ in range(ndim)]
+    a = torch.randint(0, 10, shape, dtype=dtype, device=device)
+    b = torch.randint(0, 10, shape, dtype=dtype, device=device)
+    c = torch.zeros_like(a)
 
-        a = torch.randint(0, 10, shape, dtype=dtype, device=device)
-        b = torch.randint(0, 10, shape, dtype=dtype, device=device)
-        c = torch.zeros_like(a)
+    lib.add(c, a, b)
+    torch.cuda.synchronize()
+    torch.testing.assert_close(c, a + b)
 
-        lib.add(c, a, b)
+    # test it can be captured by cuda graph
+    with torch.cuda.stream(torch.cuda.Stream()):
+        g = torch.cuda.CUDAGraph()
+        stream = torch.cuda.current_stream()
+        torch.cuda.synchronize()
+        with torch.cuda.graph(g):
+            lib.add(c, a, b)
+        torch.cuda.synchronize()
+        c.fill_(0)
+        torch.testing.assert_close(c, torch.zeros_like(c))
+        torch.cuda.synchronize()
+        g.replay()
         torch.cuda.synchronize()
         torch.testing.assert_close(c, a + b)
-
-        # test it can be captured by cuda graph
-        with torch.cuda.stream(torch.cuda.Stream()):
-            g = torch.cuda.CUDAGraph()
-            stream = torch.cuda.current_stream()
-            torch.cuda.synchronize()
-            with torch.cuda.graph(g):
-                lib.add(c, a, b)
-            torch.cuda.synchronize()
-            c.fill_(0)
-            torch.testing.assert_close(c, torch.zeros_like(c))
-            torch.cuda.synchronize()
-            g.replay()
-            torch.cuda.synchronize()
-            torch.testing.assert_close(c, a + b)
