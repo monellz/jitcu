@@ -5,6 +5,7 @@ A simple jit for quick cuda-related debugging and performance tuning
 ## Usage
 
 See ```tests``` for examples.
+* Now it supports Ascend devices, see ```tests/test_ascend_910a```
 
 ```python
 from jitcu import load_cuda_ops
