@@ -78,12 +78,21 @@ class Library(object):
         "i64": c_int64,
     }
 
-    def __init__(self, lib_path: str, func_names: List[str], func_params: List[str], device_type: str = "cuda"):
+    def __init__(
+        self,
+        lib_path: str,
+        func_names: List[str],
+        func_params: List[str],
+        device_type: str = "cuda",
+    ):
         self.lib_path = lib_path
         self.func_names = func_names
         self.func_params = func_params
         self.device_type = device_type
-        assert self.device_type in ["cuda", "npu"], f"Unsupported device type: {self.device_type}"
+        assert self.device_type in [
+            "cuda",
+            "npu",
+        ], f"Unsupported device type: {self.device_type}"
 
         self._load()
 
@@ -101,6 +110,7 @@ class Library(object):
             func.restype = None
 
             if self.device_type == "cuda":
+
                 def _func(*args):
                     stream = torch.cuda.current_stream().cuda_stream
                     args = [
@@ -112,7 +122,9 @@ class Library(object):
                         for arg in args
                     ]
                     return func(stream, *args)
+
             elif self.device_type == "npu":
+
                 def _func(*args):
                     stream = torch.npu.current_stream().npu_stream
                     args = [
@@ -124,6 +136,9 @@ class Library(object):
                         for arg in args
                     ]
                     return func(stream, *args)
+
             else:
-                raise NotImplementedError(f"Unsupported device type: {self.device_type}")
+                raise NotImplementedError(
+                    f"Unsupported device type: {self.device_type}"
+                )
             self.__setattr__(func_name, _func)

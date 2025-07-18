@@ -8,7 +8,6 @@ from jitcu import load_ascend_ops
 
 @pytest.mark.parametrize("ndim", [1, 2, 3])
 @pytest.mark.parametrize("dtype", [torch.int32, torch.float32])
-@pytest.mark.parametrize("dtype", [torch.float32])
 @pytest.mark.parametrize("device", ["npu:0"])
 def test_gpu_add(ndim, dtype, device):
     code_str = r"""
@@ -83,7 +82,7 @@ void add(aclrtStream stream, Tensor& c, const Tensor& a, const Tensor& b) {
     lib = load_ascend_ops(
         name="add",
         sources=code_str,
-        cce_aicore_arch="dav-c100",
+        soc_version="Ascend910A",
         func_names=["add"],
         func_params=["t_t_t"],
         build_directory="./build",
