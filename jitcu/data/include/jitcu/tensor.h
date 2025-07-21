@@ -83,9 +83,17 @@ struct Tensor {
     return static_cast<T*>(data);
   }
 
-  inline int64_t size(int32_t dim) const { return shape[dim]; }
+  inline int64_t size(int32_t dim) const {
+    if (dim < 0) dim += ndim;
+    assert(dim >= 0 && dim < ndim);
+    return shape[dim];
+  }
 
-  inline int64_t stride(int32_t dim) const { return strides[dim]; }
+  inline int64_t stride(int32_t dim) const {
+    if (dim < 0) dim += ndim;
+    assert(dim >= 0 && dim < ndim);
+    return strides[dim];
+  }
 
   // to support dbg(...)
   friend std::ostream& operator<<(std::ostream& os, const Tensor& tensor) {
