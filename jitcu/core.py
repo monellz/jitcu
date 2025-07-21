@@ -367,19 +367,22 @@ def load_ascend_ops(
         )
 
     if use_cpu_mode:
-        assert False, "CPU mode has bugs now"
+        # assert False, "CPU mode has bugs now"
         cmake_build_directory = build_directory / f"{name}_cmake_build"
         cmake_list_path = cmake_build_directory / "CMakeLists.txt"
         cmake_list_template = r"""
 cmake_minimum_required(VERSION 3.10)
 project(_TARGET_NAME_)
 set(CMAKE_CXX_STANDARD 17)
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 find_package(tikicpulib REQUIRED)
 add_library(_TARGET_NAME_ SHARED _KERNEL_FILES_)
+set_target_properties(_TARGET_NAME_ PROPERTIES PREFIX "")
 target_link_libraries(_TARGET_NAME_ PUBLIC tikicpulib::_SOC_VERSION_)
 target_compile_options(_TARGET_NAME_ PRIVATE _C_FLAGS_)
 target_include_directories(_TARGET_NAME_ PRIVATE _INCLUDE_PATHS_)
 target_link_libraries(_TARGET_NAME_ PRIVATE _LD_FLAGS_)
+install(TARGETS _TARGET_NAME_ LIBRARY DESTINATION .)
         """
         cmake_list_template = cmake_list_template.replace("_TARGET_NAME_", name)
         cmake_list_template = cmake_list_template.replace(
@@ -400,6 +403,7 @@ target_link_libraries(_TARGET_NAME_ PRIVATE _LD_FLAGS_)
 
         configure_cmd = [
             "cmake",
+            "-DCMAKE_BUILD_TYPE=Debug",
             "-B",
             str(cmake_build_directory),
             "-S",
@@ -421,7 +425,20 @@ target_link_libraries(_TARGET_NAME_ PRIVATE _LD_FLAGS_)
         if subprocess.run(build_cmd).returncode != 0:
             raise RuntimeError(f"Failed to build Ascend CPU mode ops: {name}")
 
-        lib_path = cmake_build_directory / f"lib{name}.so"
+        install_cmd = [
+            "cmake",
+            "--install",
+            str(cmake_build_directory),
+            "--prefix",
+            str(build_directory),
+        ]
+        logger.info(f"Installing CPU mode... {' '.join(install_cmd)}")
+        if subprocess.run(install_cmd).returncode != 0:
+            raise RuntimeError(f"Failed to install Ascend CPU mode ops: {name}")
+
+        with open(lib_hash_path, "w") as f:
+            f.write(hash_files(file_paths=sources + [lib_path]))
+
         return Library(
             lib_path=str(lib_path),
             func_names=func_names,
