@@ -9,7 +9,7 @@ dependencies = [
   "numpy",
 
   # for profiler
-  "tg4perfetto",
+  "tg4perfetto == 0.0.4", # FIXME: use latest version
   "protobuf == 4.25.8",
 ]
 
