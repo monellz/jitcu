@@ -109,36 +109,37 @@ class Library(object):
             ]
             func.restype = None
 
-            if self.device_type == "cuda":
+            def make_wrapper(func, device_type):
+                if device_type == "cuda":
 
-                def _func(*args):
-                    stream = torch.cuda.current_stream().cuda_stream
-                    args = [
-                        (
-                            byref(Tensor.from_torch_tensor(arg))
-                            if isinstance(arg, torch.Tensor)
-                            else arg
-                        )
-                        for arg in args
-                    ]
-                    return func(stream, *args)
+                    def _func(*args):
+                        stream = torch.cuda.current_stream().cuda_stream
+                        args = [
+                            (
+                                byref(Tensor.from_torch_tensor(arg))
+                                if isinstance(arg, torch.Tensor)
+                                else arg
+                            )
+                            for arg in args
+                        ]
+                        return func(stream, *args)
 
-            elif self.device_type == "npu":
+                elif device_type == "npu":
 
-                def _func(*args):
-                    stream = torch.npu.current_stream().npu_stream
-                    args = [
-                        (
-                            byref(Tensor.from_torch_tensor(arg))
-                            if isinstance(arg, torch.Tensor)
-                            else arg
-                        )
-                        for arg in args
-                    ]
-                    return func(stream, *args)
+                    def _func(*args):
+                        stream = torch.npu.current_stream().npu_stream
+                        args = [
+                            (
+                                byref(Tensor.from_torch_tensor(arg))
+                                if isinstance(arg, torch.Tensor)
+                                else arg
+                            )
+                            for arg in args
+                        ]
+                        return func(stream, *args)
 
-            else:
-                raise NotImplementedError(
-                    f"Unsupported device type: {self.device_type}"
-                )
-            self.__setattr__(func_name, _func)
+                else:
+                    raise NotImplementedError(f"Unsupported device type: {device_type}")
+                return _func
+
+            self.__setattr__(func_name, make_wrapper(func, self.device_type))

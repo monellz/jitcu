@@ -40,7 +40,14 @@ _JITCU_DEVICE void dump_cute_matrix(const T& addr) {
   int rows = decltype(cute::size<0>(addr))::value;
   int cols = decltype(cute::size<1>(addr))::value;
   printf("Dumping %d x %d cute matrix\n", rows, cols);
+
+  printf("%5s", "");
+  for (int j = 0; j < cols; ++j) {
+    printf("%8d ", j);
+  }
+  printf("\n");
   for (int i = 0; i < rows; ++i) {
+    printf("%3d | ", i);
     for (int j = 0; j < cols; ++j) {
       printf("%8.4f ", double(addr(i, j)));
     }
