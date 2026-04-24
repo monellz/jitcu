@@ -1,6 +1,6 @@
-from ctypes import CDLL, POINTER, Structure, byref, c_int16, c_int32, c_int64, c_void_p
+from ctypes import CDLL, POINTER, Structure, byref, c_int32, c_int64, c_void_p
 from enum import Enum
-from typing import List
+from pathlib import Path
 
 import torch
 
@@ -70,8 +70,7 @@ class Tensor(Structure):
         )
 
 
-class Library(object):
-
+class Library:
     type_mapping = {
         "t": POINTER(Tensor),
         "i32": c_int32,
@@ -80,12 +79,12 @@ class Library(object):
 
     def __init__(
         self,
-        lib_path: str,
-        func_names: List[str],
-        func_params: List[str],
+        lib_path: str | Path,
+        func_names: list[str],
+        func_params: list[str],
         device_type: str = "cuda",
     ):
-        self.lib_path = lib_path
+        self.lib_path = str(lib_path)
         self.func_names = func_names
         self.func_params = func_params
         self.device_type = device_type
@@ -98,7 +97,9 @@ class Library(object):
 
     def _load(self):
         self.lib = CDLL(self.lib_path)
-        for func_name, func_param in zip(self.func_names, self.func_params):
+        for func_name, func_param in zip(
+            self.func_names, self.func_params, strict=True
+        ):
             func = getattr(self.lib, func_name)
             # arg 0 of called function is always the cuda stream
             func.argtypes = [c_void_p] + [
@@ -127,7 +128,7 @@ class Library(object):
                 elif device_type == "npu":
 
                     def _func(*args):
-                        stream = torch.npu.current_stream().npu_stream
+                        stream = torch.npu.current_stream().npu_stream  # ty: ignore[unresolved-attribute]
                         args = [
                             (
                                 byref(Tensor.from_torch_tensor(arg))

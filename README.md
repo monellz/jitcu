@@ -21,8 +21,14 @@ A minimal JIT loader for CUDA kernels — write a kernel in a string or `.cu` fi
 pip install -e .
 # with the Perfetto trace exporter (tg4perfetto + protobuf)
 pip install -e ".[profiler]"
-# with dev tools (pytest, pre-commit)
-pip install -e ".[dev]"
+```
+
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync                    # runtime deps only
+uv sync --extra profiler   # + Perfetto exporter
+uv sync --group dev        # + pytest, pre-commit, ruff, ty
 ```
 
 ## Quick start
@@ -109,19 +115,19 @@ Open the resulting file at <https://ui.perfetto.dev/>.
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-pre-commit install               # black, isort (--profile=black), clang-format
-pytest tests/                    # hardware-specific tests require the matching device
-pytest tests/test_cuda.py::test_gpu_add -v
+uv sync --group dev              # ruff, ty, pre-commit, pytest
+uv run pre-commit install        # ruff (lint+format), ty, clang-format
+uv run pytest tests/             # hardware-specific tests require the matching device
+uv run pytest tests/test_cuda.py::test_gpu_add -v
 ```
 
-Contributions are welcome. Please run `pre-commit run --all-files` before opening a PR.
+Contributions are welcome. Please run `uv run pre-commit run --all-files` before opening a PR.
 
 ## Layout
 
 ```
 jitcu/
-  core.py          # load_cuda_ops: compile + cache
+  core/            # backends — cuda.py (load_cuda_ops), ascend.py (load_ascend_ops)
   library.py       # ctypes glue; torch.Tensor → jc::Tensor conversion
   profiler.py      # Perfetto trace export
   benchmark.py     # cudagraph-based benchmark helper

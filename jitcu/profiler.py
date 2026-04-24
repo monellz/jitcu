@@ -12,7 +12,6 @@ limitations under the License.
 """
 
 from enum import Enum
-from typing import List
 
 import torch
 
@@ -37,11 +36,11 @@ def decode_tag(tag, num_blocks, num_groups):
 
 def export_to_perfetto_trace(
     profiler_buffer: torch.Tensor,
-    event_names: List[str],
+    event_names: list[str],
     file_name: str,
 ) -> None:
     try:
-        from tg4perfetto import TraceGenerator
+        from tg4perfetto import TraceGenerator  # ty: ignore[unresolved-import]
     except ImportError as e:
         raise ImportError(
             "export_to_perfetto_trace requires the 'profiler' extra; "

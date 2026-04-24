@@ -2,7 +2,6 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-from typing import List, Union
 
 from .. import env
 
@@ -10,7 +9,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 class JITCULogger(logging.Logger):
-
     def __init__(self, name):
         super().__init__(name)
         self.setLevel(logging.INFO)
@@ -30,14 +28,14 @@ class JITCULogger(logging.Logger):
             logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         )
 
-    def info(self, msg):
-        super().info("jitcu: " + msg)
+    def info(self, msg, *args, **kwargs):
+        super().info("jitcu: " + str(msg), *args, **kwargs)
 
 
 logger = JITCULogger("jitcu")
 
 
-def hash_files(file_paths: List[Union[str, Path]]) -> str:
+def hash_files(file_paths: list[str | Path]) -> str:
     BLOCK_SIZE = 4096
     md5_hash = hashlib.md5()
     for file_path in file_paths:

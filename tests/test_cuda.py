@@ -1,5 +1,4 @@
 import random
-import tempfile
 
 import pytest
 import torch
@@ -80,7 +79,6 @@ void add(cudaStream_t stream, Tensor& c, const Tensor& a, const Tensor& b) {
     # test it can be captured by cuda graph
     with torch.cuda.stream(torch.cuda.Stream()):
         g = torch.cuda.CUDAGraph()
-        stream = torch.cuda.current_stream()
         torch.cuda.synchronize()
         with torch.cuda.graph(g):
             lib.add(c, a, b)

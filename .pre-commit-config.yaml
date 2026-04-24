@@ -11,28 +11,35 @@ repos:
       - id: check-toml
       - id: end-of-file-fixer
       - id: mixed-line-ending
-      - id: requirements-txt-fixer
       - id: trailing-whitespace
 
-  # Changes tabs to spaces
+  # Tabs -> spaces, strip CRLF
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.5
     hooks:
       - id: remove-tabs
       - id: remove-crlf
 
-  # Formatters
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.1.0
+  # Ruff: lint + format (replaces black, isort, flake8)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.11
     hooks:
-      - id: black
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+  # ty type checker (no upstream pre-commit repo yet — run via uv to use the
+  # version pinned in pyproject.toml's dev group)
+  - repo: local
     hooks:
-      - id: isort
-        args: ["--profile=black"] # <-- this one
+      - id: ty
+        name: ty
+        entry: uv run --group dev ty check
+        language: system
+        types: [python]
+        pass_filenames: false
 
+  # clang-format for C/C++/CUDA
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v19.1.7
     hooks:

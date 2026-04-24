@@ -9,22 +9,48 @@ dependencies = [
   "numpy",
 ]
 
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project.optional-dependencies]
 profiler = [
   "tg4perfetto == 0.0.4", # FIXME: use latest version
   "protobuf == 5.29.6",
 ]
-dev = ["pytest", "pre-commit"]
 
-[tool.setuptools]
-packages = ["jitcu"]
+[dependency-groups]
+dev = [
+  "pytest",
+  "pre-commit",
+  "ruff",
+  "ty",
+]
 
-[tool.setuptools.package-dir]
-"jitcu" = "jitcu"
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["jitcu*"]
 
 [tool.setuptools.package-data]
 "jitcu" = ["data/**"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = [".venv", "build"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "W",   # pycodestyle warnings
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+]
+
+[tool.ruff.lint.per-file-ignores]
+# tests embed C++/CUDA kernel sources as raw strings — keep them readable.
+"tests/*" = ["E501"]
+
+[tool.ty.src]
+include = ["jitcu"]

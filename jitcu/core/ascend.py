@@ -2,7 +2,6 @@ import os
 import platform
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Union
 
 from .. import env
 from ..library import Library
@@ -11,14 +10,14 @@ from .common import hash_files, logger
 
 def load_ascend_ops(
     name: str,
-    sources: Union[List[Union[str, Path]], str],
-    func_names: List[str],
-    func_params: List[str],
+    sources: list[str | Path] | str,
+    func_names: list[str],
+    func_params: list[str],
     soc_version: str,
-    extra_cflags: Optional[List[str]] = None,
-    extra_ldflags: Optional[List[str]] = None,
-    extra_include_paths: Optional[List[Union[str, Path]]] = None,
-    build_directory: Optional[Union[str, Path]] = None,
+    extra_cflags: list[str] | None = None,
+    extra_ldflags: list[str] | None = None,
+    extra_include_paths: list[str | Path] | None = None,
+    build_directory: str | Path | None = None,
     force_recompile: bool = False,
     use_cpu_mode: bool = False,
     verbose: bool = False,
@@ -52,9 +51,9 @@ def load_ascend_ops(
 
     # check sources
     if isinstance(sources, str):
-        assert not os.path.exists(
-            sources
-        ), f"str-typed sources should not be a file path: {sources}"
+        assert not os.path.exists(sources), (
+            f"str-typed sources should not be a file path: {sources}"
+        )
 
         source_path = build_directory / f"{name}.cpp"
         with open(source_path, "w") as f:
@@ -88,7 +87,7 @@ def load_ascend_ops(
         "-lascendcl",
         "-lruntime",
     ]
-    include_paths = [
+    include_paths: list[str | Path] = [
         env.JITCU_INCLUDE_DIR,
         f"{ASCEND_HOME_PATH}/runtime/include",
         f"{ASCEND_HOME_PATH}/{arch_os}/ascendc/include/basic_api",
@@ -131,13 +130,13 @@ def load_ascend_ops(
     need_recompile = True
     if not force_recompile and os.path.exists(lib_hash_path):
         hash_value = hash_files(file_paths=sources + [lib_path])
-        with open(lib_hash_path, "r") as f:
+        with open(lib_hash_path) as f:
             old_hash_value = f.read()
         if hash_value == old_hash_value:
             need_recompile = False
         else:
             logger.info(
-                f"Trigger recompilation, hash_value is {hash_value} (prev: {old_hash_value})"
+                f"Trigger recompilation, hash {hash_value} (prev {old_hash_value})"
             )
             need_recompile = True
 

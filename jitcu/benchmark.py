@@ -1,5 +1,5 @@
 import os
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 import triton
@@ -9,9 +9,9 @@ def benchmark(
     tag: str,
     fn: Callable,
     fn_ref: Callable,
-    verify_fn: Callable = None,
-    flops: int = None,
-    byte: int = None,
+    verify_fn: Callable | None = None,
+    flops: int | None = None,
+    byte: int | None = None,
     return_type: str = "compute",
 ):
     assert return_type in ["compute", "memory", "time"], f"{return_type=}"
@@ -43,8 +43,6 @@ def benchmark(
         with torch.cuda.stream(torch.cuda.Stream()):
             ms = triton.testing.do_bench_cudagraph(fn)
 
-    ai = flops / byte
-
     msg = f"{tag}: {ms} ms"
     if flops is not None:
         tflops_s = flops / 1e12 / (ms / 1000)
@@ -53,6 +51,7 @@ def benchmark(
         gb_s = byte / 1e9 / (ms / 1000)
         msg += f", {gb_s} GB/s"
     if flops is not None and byte is not None:
+        ai = flops / byte
         msg += f", AI {ai}"
     msg += f" ({verify=}, {once=})"
 

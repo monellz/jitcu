@@ -1,7 +1,10 @@
 venv
+.venv
 
 __pycache__
 .pytest_cache
+.ruff_cache
+.ty_cache
 *.egg-info
 build
 *.json
