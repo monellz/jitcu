@@ -1,0 +1,48 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this project is
+
+`jitcu` is a thin JIT layer for writing and iterating on CUDA kernels (and AscendC NPU kernels) from Python. It shells out to `nvcc` / `bisheng` at runtime, loads the resulting `.so` via `ctypes`, and calls into it with torch tensors. It is meant for debugging and perf tuning — not a production packaging system.
+
+## Common commands
+
+- Install for development: `pip install -e ".[dev]"` (adds `pytest`, `pre-commit`).
+- Run a single test: `pytest tests/test_cuda.py::test_gpu_add -v` (pass `-k` to narrow a parametrized case, e.g. `-k "ndim2 and float32"`).
+- Run the CUDA / CPU / Ascend test files individually — they require different hardware (`cuda:0`, CPU, `npu:0`) and will fail elsewhere.
+- Lint / format: `pre-commit run --all-files` (black, isort with `--profile=black`, clang-format on C/C++/CUDA).
+- Local env bootstrap: `source env.sh` (author's spack + venv setup; edit paths for your machine — not portable).
+
+## Control env vars (read in `jitcu/env.py`)
+
+- `JITCU_FORCE_RECOMPILE=1` — bypass the hash cache in `~/.cache/jitcu/cached_ops/<name>/`.
+- `JITCU_VERBOSE=1` — add `-v` to the compiler invocation.
+- `JITCU_NVCC_KEEP=1` — pass `--keep` to nvcc and also emit `<name>.sass` via `cuobjdump --dump-sass` for inspection.
+- `JITCU_ENABLE_PROFILER=1` — define `JC_ENABLE_PROFILER` and force recompile; see profiler section below.
+- Benchmarks (`jitcu/benchmark.py`) also read `verify=1` / `once=1`.
+
+## Architecture
+
+The pipeline is deliberately small. Understanding these four files covers most of it:
+
+- `jitcu/core.py` — `load_cuda_ops` / `load_ascend_ops`. Accept either a path list or a raw source string (written to `<build_dir>/<name>.cu` or `.cpp`), build the compiler command, hash the sources + output `.so` to decide if recompile is needed, and return a `Library`. The Ascend path has two sub-modes: device build via `bisheng` (`-x cce`, `--cce-aicore-arch=...`), or CPU simulation via a generated `CMakeLists.txt` that links `tikicpulib::<soc_version>`.
+- `jitcu/library.py` — `Library` dlopens the `.so`, wires each exported symbol's `argtypes` from a `func_params` spec string, and wraps the call so Python-side torch tensors are converted to a C `Tensor` struct and the current CUDA/NPU stream is injected as arg 0. **ABI contract**: every exported function must be `extern "C"` with signature `void f(<stream_t>, Tensor&, ..., <scalars>)` — the stream is implicit in the Python call, not listed in `func_params`. Currently supported `func_params` codes: `t` (tensor pointer), `i32`, `i64`.
+- `jitcu/data/include/jitcu/` — headers the user's kernel code is expected to `#include`. `tensor.h` defines the C `Tensor` struct and `DataType` enum that mirrors the Python side (`Tensor.Dtype.from_torch_dtype`). `utils.h` has `JITCU_CHECK` / `CUDA_CHECK` / `CUTLASS_CHECK` macros and cute-tensor dump helpers gated on `CUTE_HOST_DEVICE`. `dbg.h` is a vendored MIT `dbg(...)` macro — excluded from clang-format, don't reformat it. The include dir is auto-added to the compile command.
+- `jitcu/profiler.py` + `jitcu/data/include/jitcu/profiler.h` — a flashinfer-derived device-side profiler. The kernel writes `(tag, globaltimer_lo)` pairs into a user-supplied `uint64_t*` buffer; the host decodes it to a perfetto trace via `tg4perfetto`. Tag layout is fixed (`BLOCK_GROUP_IDX_SHIFT=12`, `EVENT_IDX_SHIFT=2`, 3 event types), and the Python decoder in `profiler.py:decode_tag` must stay in sync with the device encoding in `profiler.h:encode_tag`. When `JC_ENABLE_PROFILER` is undefined the header provides no-op stubs so instrumented kernels still build.
+
+### Adding a new scalar type to `func_params`
+
+Touch both sides together: extend `Library.type_mapping` in `jitcu/library.py` and the wrapper conversion, and (if it's a new data type carried in tensors) keep `jitcu/data/include/jitcu/tensor.h::DataType` aligned with `library.py::Tensor.Dtype`.
+
+### Build caching
+
+The hash key is `md5(sources + existing .so)`. This means editing a `#include`d header in `jitcu/data/include/` does **not** invalidate the cache — rebuild with `JITCU_FORCE_RECOMPILE=1` when changing vendored headers.
+
+## Gotchas
+
+- First positional arg of every exported C function is the stream (`cudaStream_t` / `aclrtStream`) — but it is **not** listed in `func_params` and **not** passed from Python; the wrapper injects `torch.cuda.current_stream()` / `torch.npu.current_stream()`.
+- `Tensor.from_torch_tensor` asserts `storage_offset() == 0`; sliced / offset tensors will trip it — `.contiguous()` first, or pass a base tensor plus offsets as scalars.
+- `load_cuda_ops` rejects a `sources=` string that happens to be an existing file path — pass a list for files, a raw string for inline code.
+- Ascend CPU mode generates a CMake project under `<build_dir>/<name>_cmake_build/` and requires `ASCEND_HOME_PATH` set and `tikicpulib` available at `$ASCEND_HOME_PATH/tools/tikicpulib/lib/cmake`.
+- A warning fires if neither `extra_cflags` nor `extra_cuda_cflags` contains `-DNDEBUG` — intentional, CUTLASS/CUTE asserts are expensive.

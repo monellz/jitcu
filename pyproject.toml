@@ -7,10 +7,6 @@ readme = "README.md"
 dependencies = [
   "torch",
   "numpy",
-
-  # for profiler
-  "tg4perfetto == 0.0.4", # FIXME: use latest version
-  "protobuf == 5.29.6",
 ]
 
 [build-system]
@@ -18,6 +14,10 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
+profiler = [
+  "tg4perfetto == 0.0.4", # FIXME: use latest version
+  "protobuf == 5.29.6",
+]
 dev = ["pytest", "pre-commit"]
 
 [tool.setuptools]

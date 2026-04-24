@@ -15,7 +15,6 @@ from enum import Enum
 from typing import List
 
 import torch
-from tg4perfetto import TraceGenerator
 
 
 class EventType(Enum):
@@ -41,6 +40,13 @@ def export_to_perfetto_trace(
     event_names: List[str],
     file_name: str,
 ) -> None:
+    try:
+        from tg4perfetto import TraceGenerator
+    except ImportError as e:
+        raise ImportError(
+            "export_to_perfetto_trace requires the 'profiler' extra; "
+            "install it with: pip install 'jitcu[profiler]'"
+        ) from e
 
     profiler_buffer_host = profiler_buffer.cpu()
     num_blocks, num_groups = profiler_buffer_host[:1].view(dtype=torch.int32)
