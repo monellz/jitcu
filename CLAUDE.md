@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run a single test: `uv run pytest tests/test_cuda.py::test_gpu_add -v` (pass `-k` to narrow a parametrized case, e.g. `-k "ndim2 and float32"`).
 - Run the CUDA / CPU / Ascend test files individually — they require different hardware (`cuda:0`, CPU, `npu:0`) and will fail elsewhere.
 - Lint / format / type-check: `uv run pre-commit run --all-files` (ruff lint+format, ty, clang-format on C/C++/CUDA). Or directly: `uv run ruff check .`, `uv run ruff format .`, `uv run ty check`.
-- Local env bootstrap: `source env.sh` (author's spack + venv setup; edit paths for your machine — not portable).
+- Cluster-specific toolchain (spack-loaded `nvcc`, etc.) is not committed — set it up in your shell before running tests.
 
 ## Control env vars (read in `jitcu/env.py`)
 

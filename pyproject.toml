@@ -1,13 +1,39 @@
 [project]
 name = "jitcu"
-version = "0.0.0"
-description = "A Simple Jit for cuda kernel"
-requires-python = ">=3.10"
+version = "1.0.0"
+description = "A minimal JIT loader for CUDA / AscendC kernels callable from PyTorch"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+  { name = "Runxin Zhong", email = "rxzhong@outlook.com" },
+]
+keywords = ["cuda", "jit", "pytorch", "ascend", "kernel"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: C++",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Scientific/Engineering",
+  "Environment :: GPU :: NVIDIA CUDA",
+]
 dependencies = [
   "torch",
   "numpy",
 ]
+
+[project.urls]
+Homepage = "https://github.com/monellz/jitcu"
+Repository = "https://github.com/monellz/jitcu"
+Issues = "https://github.com/monellz/jitcu/issues"
 
 [project.optional-dependencies]
 profiler = [
@@ -24,7 +50,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
