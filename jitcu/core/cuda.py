@@ -5,6 +5,7 @@ from pathlib import Path
 from .. import env
 from ..library import Library
 from .common import hash_files, logger
+from .externals import resolve_externals
 
 
 def load_cuda_ops(
@@ -17,6 +18,7 @@ def load_cuda_ops(
     extra_cuda_cflags: list[str] | None = None,
     extra_ldflags: list[str] | None = None,
     extra_include_paths: list[str | Path] | None = None,
+    external_libs: dict[str, str | Path | None] | list[str] | None = None,
     build_directory: str | Path | None = None,
     nvcc_keep: bool = False,
     force_recompile: bool = False,
@@ -91,6 +93,15 @@ def load_cuda_ops(
     cuda_cflags += extra_cuda_cflags
     ldflags += extra_ldflags
     include_paths += extra_include_paths
+
+    # resolve external libs (e.g. nvshmem): auto-search or honor user-supplied path
+    for resolved in resolve_externals(external_libs):
+        include_paths += resolved.include_paths
+        for lib_path in resolved.lib_paths:
+            ldflags.append(f"-L{lib_path}")
+            ldflags.extend(["-Xlinker", f"-rpath={lib_path}"])
+        ldflags += resolved.link_libs
+        cuda_cflags += resolved.extra_cuda_cflags
 
     if nvcc_keep:
         # Still use --keep-dir to keep the object file

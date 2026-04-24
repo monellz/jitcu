@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The pipeline is deliberately small. Understanding these four files covers most of it:
 
-- `jitcu/core/` — backend package. `cuda.py::load_cuda_ops` and `ascend.py::load_ascend_ops` each accept either a path list or a raw source string (written to `<build_dir>/<name>.cu` or `.cpp`), build the compiler command, hash the sources + output `.so` to decide if recompile is needed, and return a `Library`. `common.py` holds the shared `JITCULogger` + `hash_files` helper. The Ascend path has two sub-modes: device build via `bisheng` (`-x cce`, `--cce-aicore-arch=...`), or CPU simulation via a generated `CMakeLists.txt` that links `tikicpulib::<soc_version>`.
+- `jitcu/core/` — backend package. `cuda.py::load_cuda_ops` and `ascend.py::load_ascend_ops` each accept either a path list or a raw source string (written to `<build_dir>/<name>.cu` or `.cpp`), build the compiler command, hash the sources + output `.so` to decide if recompile is needed, and return a `Library`. `common.py` holds the shared `JITCULogger` + `hash_files` helper. `externals.py` holds the third-party-library registry consumed by the `external_libs=` kwarg of `load_cuda_ops` (see below). The Ascend path has two sub-modes: device build via `bisheng` (`-x cce`, `--cce-aicore-arch=...`), or CPU simulation via a generated `CMakeLists.txt` that links `tikicpulib::<soc_version>`.
 - `jitcu/library.py` — `Library` dlopens the `.so`, wires each exported symbol's `argtypes` from a `func_params` spec string, and wraps the call so Python-side torch tensors are converted to a C `Tensor` struct and the current CUDA/NPU stream is injected as arg 0. **ABI contract**: every exported function must be `extern "C"` with signature `void f(<stream_t>, Tensor&, ..., <scalars>)` — the stream is implicit in the Python call, not listed in `func_params`. Currently supported `func_params` codes: `t` (tensor pointer), `i32`, `i64`.
 - `jitcu/data/include/jitcu/` — headers the user's kernel code is expected to `#include`. `tensor.h` defines the C `Tensor` struct and `DataType` enum that mirrors the Python side (`Tensor.Dtype.from_torch_dtype`). `utils.h` has `JITCU_CHECK` / `CUDA_CHECK` / `CUTLASS_CHECK` macros and cute-tensor dump helpers gated on `CUTE_HOST_DEVICE`. `dbg.h` is a vendored MIT `dbg(...)` macro — excluded from clang-format, don't reformat it. The include dir is auto-added to the compile command.
 - `jitcu/profiler.py` + `jitcu/data/include/jitcu/profiler.h` — a flashinfer-derived device-side profiler. The kernel writes `(tag, globaltimer_lo)` pairs into a user-supplied `uint64_t*` buffer; the host decodes it to a perfetto trace via `tg4perfetto`. Tag layout is fixed (`BLOCK_GROUP_IDX_SHIFT=12`, `EVENT_IDX_SHIFT=2`, 3 event types), and the Python decoder in `profiler.py:decode_tag` must stay in sync with the device encoding in `profiler.h:encode_tag`. When `JC_ENABLE_PROFILER` is undefined the header provides no-op stubs so instrumented kernels still build.
@@ -34,6 +34,12 @@ The pipeline is deliberately small. Understanding these four files covers most o
 ### Adding a new scalar type to `func_params`
 
 Touch both sides together: extend `Library.type_mapping` in `jitcu/library.py` and the wrapper conversion, and (if it's a new data type carried in tensors) keep `jitcu/data/include/jitcu/tensor.h::DataType` aligned with `library.py::Tensor.Dtype`.
+
+### Adding a new entry to `external_libs`
+
+`load_cuda_ops(external_libs=...)` accepts `list[str]` (all auto-search) or `dict[str, path|None]` (explicit path or `None` to auto-search). Search order per entry: user-supplied path → each `env_vars` env var → each `python_packages` (via `importlib.util.find_spec`) → `default_paths`. Candidates are accepted only if `<root>/<include_subdir>/<probe_header>` exists.
+
+To register a new library, add an `ExternalLib(...)` entry to `EXTERNAL_LIBS` in `jitcu/core/externals.py`. `_resolve_link_lib` automatically rewrites `-l<name>` to `-l:lib<name>.so.<N>` when only the versioned SONAME is present (required for pip-installed NVIDIA packages that don't ship the unversioned symlink). rpath is added automatically for every resolved lib path.
 
 ### Build caching
 
@@ -46,3 +52,5 @@ The hash key is `md5(sources + existing .so)`. This means editing a `#include`d 
 - `load_cuda_ops` rejects a `sources=` string that happens to be an existing file path — pass a list for files, a raw string for inline code.
 - Ascend CPU mode generates a CMake project under `<build_dir>/<name>_cmake_build/` and requires `ASCEND_HOME_PATH` set and `tikicpulib` available at `$ASCEND_HOME_PATH/tools/tikicpulib/lib/cmake`.
 - A warning fires if neither `extra_cflags` nor `extra_cuda_cflags` contains `-DNDEBUG` — intentional, CUTLASS/CUTE asserts are expensive.
+- The build-cache hash covers source + `.so` only, not `external_libs` paths — if a resolver starts returning a different root, the embedded rpath in the old `.so` changes the file so the cache naturally invalidates, but env-var-driven flag changes without a new `.so` content diff will not. Use `JITCU_FORCE_RECOMPILE=1` if unsure.
+- When using `external_libs=["nvshmem"]`, expose function names in the C source without colliding with NVSHMEM's own `nvshmem_*` symbols (e.g. don't declare your own `nvshmem_init`) — headers pull in the real declarations and gcc will error on conflict.
