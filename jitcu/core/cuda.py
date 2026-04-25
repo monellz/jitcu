@@ -2,6 +2,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from filelock import FileLock
+
 from .. import env
 from ..library import Library
 from .common import hash_files, logger
@@ -39,16 +41,15 @@ def load_cuda_ops(
         force_recompile = True
         logger.warning("Profiling is enabled, force recompilation.")
 
-    # check sources
+    # check sources (str-source contents are written inside the build lock below
+    # to avoid torn reads when multiple processes share the same build dir)
+    pending_str_source: str | None = None
     if isinstance(sources, str):
         assert not os.path.exists(sources), (
             f"str-typed sources should not be a file path: {sources}"
         )
-
         source_path = build_directory / f"{name}.cu"
-        with open(source_path, "w") as f:
-            f.write(sources)
-            f.flush()
+        pending_str_source = sources
         sources = [source_path]
     else:
         for path in sources:
@@ -118,71 +119,80 @@ def load_cuda_ops(
 
     lib_name = f"{name}.so"
     lib_path = build_directory / lib_name
-
-    # check if compilation is necessary
     lib_hash_path = build_directory / f"{name}.hash"
-    need_recompile = True
-    if not force_recompile and os.path.exists(lib_hash_path):
-        hash_value = hash_files(file_paths=sources + [lib_path])
-        with open(lib_hash_path) as f:
-            old_hash_value = f.read()
-        if hash_value == old_hash_value:
-            need_recompile = False
+    lock_path = build_directory / f"{name}.lock"
+
+    # Serialize source-write / hash-check / nvcc / hash-save across processes
+    # sharing this build_directory. Lock is per-`name`, so different ops still
+    # build in parallel. The first acquirer compiles; later acquirers find a
+    # matching hash and skip straight to dlopen.
+    with FileLock(str(lock_path)):
+        if pending_str_source is not None:
+            with open(sources[0], "w") as f:
+                f.write(pending_str_source)
+                f.flush()
+
+        # check if compilation is necessary
+        need_recompile = True
+        if not force_recompile and os.path.exists(lib_hash_path):
+            hash_value = hash_files(file_paths=sources + [lib_path])
+            with open(lib_hash_path) as f:
+                old_hash_value = f.read()
+            if hash_value == old_hash_value:
+                need_recompile = False
+            else:
+                logger.info(
+                    f"Trigger recompilation, hash {hash_value} (prev {old_hash_value})"
+                )
+                need_recompile = True
+
+        if not need_recompile:
+            logger.info(f"Using cached library: {lib_path}")
         else:
-            logger.info(
-                f"Trigger recompilation, hash {hash_value} (prev {old_hash_value})"
-            )
-            need_recompile = True
+            cmd = [
+                "nvcc",
+                *arch_flags,
+                *cuda_cflags,
+                *ldflags,
+                *["-I" + str(p) for p in include_paths],
+                "--compiler-options",
+                "'-fPIC'",
+                "-lineinfo",
+                "--shared",
+                *cflags,
+                "-o",
+                str(lib_path),
+                *[str(s) for s in sources],
+            ]
 
-    if not need_recompile:
-        logger.info(f"Using cached library: {lib_path}")
-        return Library(
-            lib_path=lib_path,
-            func_names=func_names,
-            func_params=func_params,
-            device_type="cuda",
-        )
+            logger.info(f"Compiling... {' '.join(cmd)}")
 
-    cmd = [
-        "nvcc",
-        *arch_flags,
-        *cuda_cflags,
-        *ldflags,
-        *["-I" + str(p) for p in include_paths],
-        "--compiler-options",
-        "'-fPIC'",
-        "-lineinfo",
-        "--shared",
-        *cflags,
-        "-o",
-        str(lib_path),
-        *[str(s) for s in sources],
-    ]
-
-    logger.info(f"Compiling... {' '.join(cmd)}")
-
-    ret = subprocess.run(cmd)
-    if ret.returncode != 0:
-        raise RuntimeError(f"Failed to compile CUDA ops: {name}")
-
-    if nvcc_keep:
-        sass_path = build_directory / f"{name}.sass"
-        o_path = build_directory / f"{name}.o"
-        assert os.path.exists(o_path), f"object file does not exist: {o_path}"
-        sass_cmd = [
-            "cuobjdump",
-            "--dump-sass",
-            str(o_path),
-        ]
-        with open(sass_path, "w") as f:
-            logger.info(f"Generating SASS (saved in {sass_path}): {' '.join(sass_cmd)}")
-            ret = subprocess.run(sass_cmd, stdout=f, text=True)
+            ret = subprocess.run(cmd)
             if ret.returncode != 0:
-                raise RuntimeError(f"Failed to generate SASS: {name}")
+                raise RuntimeError(f"Failed to compile CUDA ops: {name}")
 
-    # save the hash value
-    with open(lib_hash_path, "w") as f:
-        f.write(hash_files(file_paths=sources + [lib_path]))
+            if nvcc_keep:
+                sass_path = build_directory / f"{name}.sass"
+                o_path = build_directory / f"{name}.o"
+                assert os.path.exists(o_path), (
+                    f"object file does not exist: {o_path}"
+                )
+                sass_cmd = [
+                    "cuobjdump",
+                    "--dump-sass",
+                    str(o_path),
+                ]
+                with open(sass_path, "w") as f:
+                    logger.info(
+                        f"Generating SASS (saved in {sass_path}): {' '.join(sass_cmd)}"
+                    )
+                    ret = subprocess.run(sass_cmd, stdout=f, text=True)
+                    if ret.returncode != 0:
+                        raise RuntimeError(f"Failed to generate SASS: {name}")
+
+            # save the hash value
+            with open(lib_hash_path, "w") as f:
+                f.write(hash_files(file_paths=sources + [lib_path]))
 
     return Library(
         lib_path=lib_path,
