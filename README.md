@@ -13,23 +13,44 @@ A minimal JIT loader for CUDA kernels — write a kernel in a string or `.cu` fi
 
 ## Requirements
 
-- Python ≥ 3.10, PyTorch, NumPy
-- CUDA toolkit — `nvcc`, optionally `cuobjdump` for SASS dumps
+- Python ≥ 3.10, NumPy, filelock — always required.
+- A backend extra — exactly one of:
+  - `cuda` — PyTorch (default CUDA build) + a CUDA toolkit (`nvcc`, optionally `cuobjdump` for SASS dumps).
+  - `ascend` — PyTorch (CPU build) + `torch-npu` + the CANN toolchain (`bisheng`).
 
 ## Installation
 
+`jitcu` has two mutually exclusive backend extras. `cuda` is the default.
+
 ```bash
-pip install -e .
-# with the Perfetto trace exporter (tg4perfetto + protobuf)
-pip install -e ".[profiler]"
+pip install -e ".[cuda]"      # CUDA backend (default)
+pip install -e ".[ascend]"    # Ascend NPU backend
+pip install -e ".[cuda,profiler]"   # + Perfetto trace exporter
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv sync                    # runtime deps only
-uv sync --extra profiler   # + Perfetto exporter
-uv sync --group dev        # + pytest, pre-commit, ruff, ty
+uv sync                       # = cuda backend (default-extras)
+uv sync --extra ascend        # Ascend backend instead
+uv sync --extra profiler      # + Perfetto exporter
+uv sync --group dev           # + pytest, pre-commit, ruff, ty
+```
+
+The `ascend` extra needs the **CPU** PyTorch build. Inside this repo `uv` is
+already configured to fetch it from the PyTorch CPU index. **A separate project
+that depends on `jitcu[ascend]` must configure its own torch CPU index** — pip
+index selection does not propagate through a dependency. With uv, add to the
+consuming project's `pyproject.toml`:
+
+```toml
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
 ```
 
 ## Quick start

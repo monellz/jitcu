@@ -5,12 +5,27 @@ description = "A minimal JIT loader for CUDA / AscendC kernels callable from PyT
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "torch",
   "numpy",
   "filelock",
+  # torch is always required. Its default (PyPI) build is the CUDA one, so a
+  # plain install gives the cuda backend; the `ascend` extra redirects torch to
+  # the CPU build via [tool.uv.sources] below.
+  "torch",
 ]
 
 [project.optional-dependencies]
+# Two mutually exclusive backends (see [tool.uv] conflicts). The `cuda` extra
+# is intentionally empty — torch's default (CUDA) build already comes from the
+# base deps — but it must exist: `conflicts` needs a named extra to pair with
+# `ascend`, and without that conflict uv's universal resolution would redirect
+# torch to the CPU index for *every* install. `jitcu[ascend]` re-lists torch
+# (so the CPU-index redirect in [tool.uv.sources] can key off this extra) and
+# adds torch-npu.
+cuda = []
+ascend = [
+  "torch",
+  "torch-npu",
+]
 profiler = [
   "tg4perfetto == 0.0.4", # FIXME: use latest version
   "protobuf == 5.29.6",
@@ -22,6 +37,28 @@ dev = [
   "pre-commit",
   "ruff",
   "ty",
+]
+
+[tool.uv]
+# cuda / ascend are mutually exclusive — they disagree on the torch build.
+# This conflict is what lets a plain install keep the default (CUDA) torch.
+conflicts = [
+  [{ extra = "cuda" }, { extra = "ascend" }],
+]
+
+# torch CPU build lives on a separate index. `explicit` keeps it from being used
+# for anything other than the packages pinned to it in [tool.uv.sources].
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+# Only the ascend extra redirects torch to the CPU index; cuda uses the PyPI
+# default (CUDA) build. NOTE: this redirect is local to the jitcu repo — a
+# project that depends on jitcu[ascend] must configure its own torch CPU index.
+torch = [
+  { index = "pytorch-cpu", extra = "ascend" },
 ]
 
 [build-system]
