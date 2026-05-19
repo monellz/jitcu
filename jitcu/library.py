@@ -1,8 +1,38 @@
+import shutil
+import subprocess
 from ctypes import CDLL, POINTER, Structure, byref, c_int32, c_int64, c_void_p
 from enum import Enum
 from pathlib import Path
 
 import torch
+
+
+def _exported_functions(lib_path: str) -> list[str] | None:
+    """Best-effort list of `extern "C"` function names exported by a `.so`.
+
+    Reads the ELF dynamic symbol table via `nm`; mangled C++ symbols (`_Z...`)
+    are dropped so the result is just the C-linkage entrypoints. Returns
+    ``None`` when `nm` is unavailable, so callers can degrade gracefully.
+    """
+    nm = shutil.which("nm")
+    if nm is None:
+        return None
+    try:
+        out = subprocess.run(
+            [nm, "-D", "--defined-only", lib_path],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return None
+    funcs = []
+    for line in out.splitlines():
+        # nm -D lines look like `<addr> <type> <name>`; T/W are text symbols.
+        parts = line.split()
+        if len(parts) >= 3 and parts[-2] in ("T", "W") and not parts[-1].startswith("_Z"):
+            funcs.append(parts[-1])
+    return funcs
 
 
 class Tensor(Structure):
@@ -80,13 +110,11 @@ class Library:
     def __init__(
         self,
         lib_path: str | Path,
-        func_names: list[str],
-        func_params: list[str],
+        func_specs: dict[str, str],
         device_type: str = "cuda",
     ):
         self.lib_path = str(lib_path)
-        self.func_names = func_names
-        self.func_params = func_params
+        self.func_specs = func_specs
         self.device_type = device_type
         assert self.device_type in [
             "cuda",
@@ -97,10 +125,19 @@ class Library:
 
     def _load(self):
         self.lib = CDLL(self.lib_path)
-        for func_name, func_param in zip(
-            self.func_names, self.func_params, strict=True
-        ):
-            func = getattr(self.lib, func_name)
+        for func_name, func_param in self.func_specs.items():
+            try:
+                func = getattr(self.lib, func_name)
+            except AttributeError:
+                exported = _exported_functions(self.lib_path)
+                hint = (
+                    f" Exported functions: {exported}"
+                    if exported is not None
+                    else ""
+                )
+                raise RuntimeError(
+                    f"function {func_name!r} not found in {self.lib_path}.{hint}"
+                ) from None
             # arg 0 of called function is always the cuda stream
             func.argtypes = [c_void_p] + [
                 self.type_mapping[p]

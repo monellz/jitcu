@@ -81,8 +81,7 @@ extern "C" void add(cudaStream_t stream, Tensor& c, const Tensor& a, const Tenso
 lib = load_cuda_ops(
     name="ops",
     sources=src,                 # raw string OR list of file paths
-    func_names=["add"],
-    func_params=["t_t_t"],       # per-function ABI; see below
+    func_specs={"add": "t_t_t"},  # {name: per-function ABI}; see below
     arches=["90"],               # e.g. H100
 )
 
@@ -102,8 +101,8 @@ Every exported function must be `extern "C"` with this shape:
 void fn(cudaStream_t, Tensor& ..., <scalars>);
 ```
 
-- Arg 0 is the CUDA stream. **It is injected by the wrapper from the current torch stream — do not list it in `func_params` and do not pass it from Python.**
-- Remaining arguments are described by `func_params` using underscore-separated codes: `t` (`Tensor*`), `i32`, `i64`. Example: `"t_t_t_i32"` = three tensors and one `int32_t`.
+- Arg 0 is the CUDA stream. **It is injected by the wrapper from the current torch stream — do not list it in the `func_specs` ABI string and do not pass it from Python.**
+- `func_specs` maps each exported function name to its ABI string of underscore-separated codes: `t` (`Tensor*`), `i32`, `i64`. Example: `{"fn": "t_t_t_i32"}` = three tensors and one `int32_t`. A function with no args (besides the stream) uses the empty string `""`. Missing names are reported at load time with the list of symbols actually exported by the `.so`.
 - `Tensor` is the plain C struct in `jitcu/tensor.h`. Dtype codes line up with `Tensor.Dtype` on the Python side (see `jitcu/library.py`).
 
 ## External libraries

@@ -62,8 +62,7 @@ void add(cudaStream_t stream, Tensor& c, const Tensor& a, const Tensor& b) {
     lib = load_cuda_ops(
         name="add",
         sources=code_str,
-        func_names=["add"],
-        func_params=["t_t_t"],
+        func_specs={"add": "t_t_t"},
     )
 
     shape = [random.randint(1, 5) for _ in range(ndim)]

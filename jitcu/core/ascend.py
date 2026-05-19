@@ -13,8 +13,7 @@ from .common import hash_files, logger
 def load_ascend_ops(
     name: str,
     sources: list[str | Path] | str,
-    func_names: list[str],
-    func_params: list[str],
+    func_specs: dict[str, str],
     soc_version: str | None = None,
     extra_cflags: list[str] | None = None,
     extra_ldflags: list[str] | None = None,
@@ -131,7 +130,7 @@ def load_ascend_ops(
         cflags.extend(["-DJC_ENABLE_PROFILER"])
 
     logger.info(
-        f"Loading... {name=} {func_names=} {func_params=} {sources=} {build_directory=}"
+        f"Loading... {name=} {func_specs=} {sources=} {build_directory=}"
     )
 
     lib_name = f"{name}.so"
@@ -186,7 +185,6 @@ def load_ascend_ops(
 
     return Library(
         lib_path=str(lib_path),
-        func_names=func_names,
-        func_params=func_params,
+        func_specs=func_specs,
         device_type="npu",
     )

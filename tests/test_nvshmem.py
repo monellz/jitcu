@@ -149,13 +149,12 @@ def _load_nvshmem_lib():
     return load_cuda_ops(
         name="nvshmem_simple_shift",
         sources=NVSHMEM_SRC,
-        func_names=[
-            "jc_nvshmem_get_uid",
-            "jc_nvshmem_init",
-            "jc_nvshmem_run",
-            "jc_nvshmem_teardown",
-        ],
-        func_params=["t", "t_i32_i32", "t", ""],
+        func_specs={
+            "jc_nvshmem_get_uid": "t",
+            "jc_nvshmem_init": "t_i32_i32",
+            "jc_nvshmem_run": "t",
+            "jc_nvshmem_teardown": "",
+        },
         external_libs=["nvshmem"],
         extra_cuda_cflags=["-DNDEBUG"],
     )

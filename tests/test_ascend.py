@@ -82,8 +82,7 @@ void add(aclrtStream stream, Tensor& c, const Tensor& a, const Tensor& b) {
     lib = load_ascend_ops(
         name="add",
         sources=code_str,
-        func_names=["add"],
-        func_params=["t_t_t"],
+        func_specs={"add": "t_t_t"},
         build_directory="./build",
     )
 
