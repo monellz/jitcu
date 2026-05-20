@@ -93,7 +93,7 @@ def load_ascend_ops(
         # ascend related
         "-Wno-macro-redefined",
         "-Wno-ignored-attributes",
-        "-xcce",
+        "-x", "asc",
         f"--npu-arch={cce_aicore_arch}",
         "-mllvm", "-cce-aicore-stack-size=0x8000",
         "-mllvm", "-cce-aicore-function-stack-size=0x8000",
@@ -101,23 +101,23 @@ def load_ascend_ops(
         "-mllvm", "-cce-aicore-dcci-insert-for-scalar=false",
     ]
     ldflags = [
-        f"-L{ASCEND_HOME_PATH}/runtime/lib64",
-        "-lascendcl",
-        "-lruntime",
+        # f"-L{ASCEND_HOME_PATH}/runtime/lib64",
+        # "-lascendcl",
+        # "-lruntime",
     ]
     ascendc_include = f"{ASCEND_HOME_PATH}/{arch_os}/ascendc/include"
     include_paths: list[str | Path] = [
         env.JITCU_INCLUDE_DIR,
         # acl/acl.h and the rest of the host runtime headers
-        f"{ASCEND_HOME_PATH}/{arch_os}/include",
+        # f"{ASCEND_HOME_PATH}/{arch_os}/include",
         # AscendC kernel-side headers (kernel_operator.h + its interface/impl tree)
-        f"{ascendc_include}/basic_api",
-        f"{ascendc_include}/basic_api/interface",
-        f"{ascendc_include}/basic_api/impl",
-        f"{ascendc_include}/highlevel_api",
+        # f"{ascendc_include}/basic_api",
+        # f"{ascendc_include}/basic_api/interface",
+        # f"{ascendc_include}/basic_api/impl",
+        # f"{ascendc_include}/highlevel_api",
         # some AscendC headers use root-relative includes ("include/utils/...")
         # that resolve against the `asc` tree.
-        f"{ASCEND_HOME_PATH}/{arch_os}/asc",
+        # f"{ASCEND_HOME_PATH}/{arch_os}/asc",
     ]
 
     cflags += extra_cflags

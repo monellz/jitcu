@@ -33,7 +33,7 @@ int64_t check_and_return_total_size(Tensor& c, const Tensor& a, const Tensor& b)
 }
 
 template<typename T>
-__global__ __aicore__ void _add_kernel(GM_ADDR c, GM_ADDR a, GM_ADDR b, int64_t size) {
+__global__ __vector__ void _add_kernel(GM_ADDR c, GM_ADDR a, GM_ADDR b, int64_t size) {
   __gm__ T* c_ptr = reinterpret_cast<__gm__ T*>(c);
   __gm__ T* a_ptr = reinterpret_cast<__gm__ T*>(a);
   __gm__ T* b_ptr = reinterpret_cast<__gm__ T*>(b);
