@@ -146,4 +146,14 @@ EXTERNAL_LIBS: dict[str, ExternalLib] = {
         extra_cuda_cflags=["-rdc=true"],
         probe_header="nvshmem.h",
     ),
+    # PTO-ISA (header-only). Registering it as an external lib means jitcu resolves its
+    # include and places it AHEAD of {ASCEND}/include in the search order, so its headers
+    # win over the same-named `pto/` tree CANN ships under {ASCEND}/include. No standard
+    # install location, so pass the repo path or set $PTO_ISA_HOME:
+    #   load_ascend_ops(..., external_libs={"pto": "/path/to/pto-isa"})
+    "pto": ExternalLib(
+        name="pto",
+        env_vars=["PTO_ISA_HOME", "PTO_HOME"],
+        probe_header="pto/pto-inst.hpp",
+    ),
 }

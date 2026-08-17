@@ -8,6 +8,7 @@ from filelock import FileLock
 from .. import env
 from ..library import Library
 from .common import hash_files, logger
+from .externals import resolve_externals
 
 
 def load_ascend_ops(
@@ -15,6 +16,7 @@ def load_ascend_ops(
     sources: list[str | Path] | str,
     func_specs: dict[str, str],
     soc_version: str | None = None,
+    external_libs: dict[str, str | Path | None] | list[str] | None = None,
     extra_cflags: list[str] | None = None,
     extra_ldflags: list[str] | None = None,
     extra_include_paths: list[str | Path] | None = None,
@@ -25,11 +27,13 @@ def load_ascend_ops(
     machine = platform.machine()
     system = platform.system().lower()
     arch_os = f"{machine}-{system}"
+    # CCE-front-end aicore arch (-xcce --cce-aicore-arch=...): needed for PTO-ISA / mixed
+    # AIC+AIV kernels (SYNCALL etc.). ref:
+    # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900/programug/Ascendcopdevg/atlas_ascendc_10_10053.html
     cce_aicore_arch_map = {
-        # ref: https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900/programug/Ascendcopdevg/atlas_ascendc_10_10053.html
-        "Ascend910A": "dav-1001",
-        "Ascend910B": "dav-2201",
-        "Ascend950PR": "dav-3510",
+        "Ascend910A": "dav-c100",
+        "Ascend910B": "dav-c220",
+        "Ascend950PR": "dav-c310",
     }
     if soc_version is None:
         import acl
@@ -90,11 +94,12 @@ def load_ascend_ops(
         "-O3",
         "-fPIC",
         "-shared",
-        # ascend related
+        # ascend related (CCE front-end, for PTO-ISA / mixed AIC+AIV kernels)
         "-Wno-macro-redefined",
         "-Wno-ignored-attributes",
-        "-x", "asc",
-        f"--npu-arch={cce_aicore_arch}",
+        "-xcce",
+        f"--cce-aicore-arch={cce_aicore_arch}",
+        "-mllvm", "-cce-aicore-addr-transform",
         "-mllvm", "-cce-aicore-stack-size=0x8000",
         "-mllvm", "-cce-aicore-function-stack-size=0x8000",
         "-mllvm", "-cce-aicore-record-overflow=true",
@@ -105,20 +110,22 @@ def load_ascend_ops(
         # "-lascendcl",
         # "-lruntime",
     ]
-    ascendc_include = f"{ASCEND_HOME_PATH}/{arch_os}/ascendc/include"
     include_paths: list[str | Path] = [
         env.JITCU_INCLUDE_DIR,
-        # acl/acl.h and the rest of the host runtime headers
-        # f"{ASCEND_HOME_PATH}/{arch_os}/include",
-        # AscendC kernel-side headers (kernel_operator.h + its interface/impl tree)
-        # f"{ascendc_include}/basic_api",
-        # f"{ascendc_include}/basic_api/interface",
-        # f"{ascendc_include}/basic_api/impl",
-        # f"{ascendc_include}/highlevel_api",
-        # some AscendC headers use root-relative includes ("include/utils/...")
-        # that resolve against the `asc` tree.
-        # f"{ASCEND_HOME_PATH}/{arch_os}/asc",
     ]
+    # External libs (e.g. {"pto": "/path/to/pto-isa"}) are resolved and their includes
+    # placed BEFORE {ASCEND}/include, so e.g. pto-isa's headers win over the same-named
+    # `pto/` tree CANN ships under {ASCEND}/include.
+    for resolved in resolve_externals(external_libs):
+        include_paths += resolved.include_paths
+        for lp in resolved.lib_paths:
+            ldflags.append(f"-L{lp}")
+            ldflags.append(f"-Wl,-rpath,{lp}")
+        ldflags += resolved.link_libs
+    # acl.h + host runtime headers — added AFTER the external includes (so they can't be
+    # shadowed by CANN's pto/ here). The rest of the CANN device/AscendC trees are auto-
+    # added by the CCE front-end.
+    include_paths.append(f"{ASCEND_HOME_PATH}/include")
 
     cflags += extra_cflags
     ldflags += extra_ldflags
