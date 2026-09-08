@@ -1,6 +1,16 @@
 import shutil
 import subprocess
-from ctypes import CDLL, POINTER, Structure, byref, c_int32, c_int64, c_void_p
+from ctypes import (
+    CDLL,
+    POINTER,
+    Structure,
+    byref,
+    c_double,
+    c_float,
+    c_int32,
+    c_int64,
+    c_void_p,
+)
 from enum import Enum
 from pathlib import Path
 
@@ -105,6 +115,8 @@ class Library:
         "t": POINTER(Tensor),
         "i32": c_int32,
         "i64": c_int64,
+        "f32": c_float,
+        "f64": c_double,
     }
 
     def __init__(

@@ -101,8 +101,8 @@ Every exported function must be `extern "C"` with this shape:
 void fn(cudaStream_t, Tensor& ..., <scalars>);
 ```
 
-- Arg 0 is the CUDA stream. **It is injected by the wrapper from the current torch stream — do not list it in the `func_specs` ABI string and do not pass it from Python.**
-- `func_specs` maps each exported function name to its ABI string of underscore-separated codes: `t` (`Tensor*`), `i32`, `i64`. Example: `{"fn": "t_t_t_i32"}` = three tensors and one `int32_t`. A function with no args (besides the stream) uses the empty string `""`. Missing names are reported at load time with the list of symbols actually exported by the `.so`.
+- Arg 0 is the CUDA/NPU stream. **It is injected by the wrapper from the current torch stream — do not list it in the `func_specs` ABI string and do not pass it from Python.**
+- `func_specs` maps each exported function name to its ABI string of underscore-separated codes: `t` (`Tensor*`), `i32` (`int32_t`), `i64` (`int64_t`), `f32` (`float`), `f64` (`double`). Example: `{"fn": "t_t_i64_f32_f64"}` = two tensors, one `int64_t`, one `float`, and one `double`. Pass ordinary Python integers/floats; ctypes converts scalars using the declared ABI. The code must match the C++ parameter type: `f32` rounds to FP32, while `f64` preserves Python float precision. A function with no args (besides the stream) uses the empty string `""`. Missing names are reported at load time with the list of symbols actually exported by the `.so`.
 - `Tensor` is the plain C struct in `jitcu/tensor.h`. Dtype codes line up with `Tensor.Dtype` on the Python side (see `jitcu/library.py`).
 
 ## External libraries
