@@ -118,8 +118,14 @@ def load_ascend_ops(
         # "-lascendcl",
         # "-lruntime",
     ]
+    ascendc_include = f"{ASCEND_HOME_PATH}/{arch_os}/ascendc/include"
     include_paths: list[str | Path] = [
         env.JITCU_INCLUDE_DIR,
+        f"{ascendc_include}/basic_api",
+        f"{ascendc_include}/basic_api/interface",
+        f"{ascendc_include}/basic_api/impl",
+        f"{ascendc_include}/highlevel_api",
+        f"{ASCEND_HOME_PATH}/{arch_os}/asc",
     ]
     # External libs (e.g. {"pto": "/path/to/pto-isa"}) are resolved and their includes
     # placed BEFORE {ASCEND}/include, so e.g. pto-isa's headers win over the same-named
