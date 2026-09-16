@@ -20,6 +20,7 @@ def load_ascend_ops(
     extra_cflags: list[str] | None = None,
     extra_ldflags: list[str] | None = None,
     extra_include_paths: list[str | Path] | None = None,
+    extra_hash_files: list[str | Path] | None = None,
     build_directory: str | Path | None = None,
     force_recompile: bool = False,
     verbose: bool = False,
@@ -73,6 +74,13 @@ def load_ascend_ops(
     else:
         for path in sources:
             assert os.path.exists(path), f"source file does not exist: {path}"
+
+    # extra files (e.g. headers the sources #include) folded into the cache key so
+    # editing them triggers a recompile even though they are not compiled directly.
+    if extra_hash_files is None:
+        extra_hash_files = []
+    for path in extra_hash_files:
+        assert os.path.exists(path), f"extra hash file does not exist: {path}"
 
     if extra_cflags is None:
         extra_cflags = []
@@ -144,6 +152,7 @@ def load_ascend_ops(
     lib_path = build_directory / lib_name
     lib_hash_path = build_directory / f"{name}.hash"
     lock_path = build_directory / f"{name}.lock"
+    hash_paths = [*sources, *extra_hash_files, lib_path]
 
     # Serialize source-write / hash-check / build / hash-save across processes
     # sharing this build_directory. Lock is per-`name`, so different ops still
@@ -157,7 +166,7 @@ def load_ascend_ops(
         # check if compilation is necessary
         need_recompile = True
         if not force_recompile and os.path.exists(lib_hash_path):
-            hash_value = hash_files(file_paths=sources + [lib_path])
+            hash_value = hash_files(file_paths=hash_paths)
             with open(lib_hash_path) as f:
                 old_hash_value = f.read()
             if hash_value == old_hash_value:
@@ -188,7 +197,7 @@ def load_ascend_ops(
                 raise RuntimeError(f"Failed to compile Ascend ops: {name}")
 
             with open(lib_hash_path, "w") as f:
-                f.write(hash_files(file_paths=sources + [lib_path]))
+                f.write(hash_files(file_paths=hash_paths))
 
     return Library(
         lib_path=str(lib_path),
